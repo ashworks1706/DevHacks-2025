@@ -8,6 +8,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 
 const UploadComponent = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFileUrl, setSelectedFileUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
@@ -34,7 +35,14 @@ const UploadComponent = () => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      const fileUrl = URL.createObjectURL(file);
+      setSelectedFileUrl(fileUrl);
       console.log("Selected file:", file);
+      
+      // Navigate to the edit page after a short delay
+      setTimeout(() => {
+        router.push(`/upload/edit?image=${encodeURIComponent(fileUrl)}`);
+      }, 500);
     }
   };
 
@@ -53,8 +61,16 @@ const UploadComponent = () => {
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-      console.log("Dropped file:", e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      setSelectedFile(file);
+      const fileUrl = URL.createObjectURL(file);
+      setSelectedFileUrl(fileUrl);
+      console.log("Dropped file:", file);
+      
+      // Navigate to the edit page after a short delay
+      setTimeout(() => {
+        router.push(`/upload/edit?image=${encodeURIComponent(fileUrl)}`);
+      }, 500);
     }
   };
 
@@ -62,13 +78,18 @@ const UploadComponent = () => {
     fileInputRef.current?.click();
   };
 
+  const handleSampleImageClick = (imagePath: string) => {
+    // For demo purposes, treat sample images as if they were uploaded
+    router.push(`/upload/edit?image=${encodeURIComponent(imagePath)}`);
+  };
+
   return (
     <div className="bg-gray-100 text-black min-h-screen">
-      <div className="w-full max-w-xl mx-auto px-6 py-12">
+      <div className="w-full max-w-3xl mx-auto px-6 py-12">
         {/* Upload area */}
         <div className="space-y-4">
           <div 
-            className={`p-15 rounded-3xl transition-colors w-full mx-auto min-h-[400px]  ${isDragging ? 'border-2 border-green-500' : ''}`}
+            className={`p-15 rounded-3xl transition-colors w-full mx-auto min-h-[400px]  ${isDragging ? 'border-2 border-[#8c66ff]' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -79,7 +100,7 @@ const UploadComponent = () => {
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
-                  fill="#22c55e"
+                  fill="#8c66ff"
                   className="w-12 h-12"
                 >
                   <path
@@ -91,13 +112,14 @@ const UploadComponent = () => {
               </div>
               
               {/* Heading */}
-              <h1 className="text-4xl font-bold text-black mb-8">
-                Upload a photo<br />
+              <h1 className="text-4xl font-extrabold text-black mb-8">
+                  Upload a photo, discover your perfect outfit
               </h1>
+
               
               {/* Upload button */}
               <button 
-                className="cursor-pointer bg-green-600 text-white text-3xl font-semibold py-4 px-10 rounded-full mb-6 hover:bg-green-500 transition-colors"
+                className="cursor-pointer bg-[#8c66ff] text-white text-3xl font-semibold py-4 px-10 rounded-full mb-6 hover:bg-[#7c52f2] transition-colors"
                 onClick={handleUploadClick}
               >
                 Upload Photo
@@ -119,15 +141,15 @@ const UploadComponent = () => {
               
               {/* URL option */}
               <p className="text-black mb-6">
-                paste photo or <span className="text-green-400 underline cursor-pointer">URL</span>
+                paste photo or <span className="text-[#8c66ff] underline cursor-pointer">URL</span>
               </p>
               
               {/* Display selected file */}
               {selectedFile && (
                 <div className="mt-4 p-3 bg-gray-200 rounded-lg w-full">
                   <div className="flex items-center">
-                    <div className="bg-green-500 p-2 rounded mr-3">
-                      <FiUpload className="text-black" />
+                    <div className="bg-[#8c66ff] p-2 rounded mr-3">
+                      <FiUpload className="text-white" />
                     </div>
                     <div className="text-left">
                       <p className="text-sm font-semibold truncate">{selectedFile.name}</p>
@@ -144,10 +166,13 @@ const UploadComponent = () => {
           {/* Sample outfits section */}
           <div className="max-w-sm mx-auto mt-1">
             <p className="text-gray-600 text-lg font-semibold text-center mb-2">
-              No photos? Try one of these sample outfits:
+              No photos? Try one of these:
             </p>
             <div className="grid grid-cols-4 gap-2">
-              <div className="cursor-pointer hover:opacity-80 transition-opacity">
+              <div 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => handleSampleImageClick('/images/test_pic1.png')}
+              >
                 <Image 
                   src="/images/test_pic1.png" 
                   alt="Sample outfit" 
@@ -156,7 +181,10 @@ const UploadComponent = () => {
                   className="rounded-2xl object-cover w-20 h-20"
                 />
               </div>
-              <div className="cursor-pointer hover:opacity-80 transition-opacity">
+              <div 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => handleSampleImageClick('/images/test_pic2.png')}
+              >
                 <Image 
                   src="/images/test_pic2.png" 
                   alt="Sample outfit" 
@@ -165,7 +193,10 @@ const UploadComponent = () => {
                   className="rounded-2xl object-cover w-20 h-20"
                 />
               </div>
-              <div className="cursor-pointer hover:opacity-80 transition-opacity">
+              <div 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => handleSampleImageClick('/images/test_pic3.png')}
+              >
                 <Image 
                   src="/images/test_pic3.png" 
                   alt="Sample outfit" 
@@ -174,7 +205,10 @@ const UploadComponent = () => {
                   className="rounded-2xl object-cover w-20 h-20"
                 />
               </div>
-              <div className="cursor-pointer hover:opacity-80 transition-opacity">
+              <div 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => handleSampleImageClick('/images/test_pic4.png')}
+              >
                 <Image 
                   src="/images/test_pic4.png" 
                   alt="Sample outfit" 
@@ -188,9 +222,9 @@ const UploadComponent = () => {
             {/* Terms of Service */}
             <div className="mt-4 text-xs text-gray-500 text-center">
               By uploading a photo or URL you agree to our{' '}
-              <Link href="/terms" className="text-green-400 underline">Terms of Service</Link>.
+              <Link href="/terms" className="text-[#8c66ff] underline">Terms of Service</Link>.
               To learn more about how FashionAI handles your personal data, check our{' '}
-              <Link href="/privacy" className="text-green-400 underline">Privacy Policy</Link>.
+              <Link href="/privacy" className="text-[#8c66ff] underline">Privacy Policy</Link>.
             </div>
           </div>
         </div>

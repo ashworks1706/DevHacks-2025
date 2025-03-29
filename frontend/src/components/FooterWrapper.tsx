@@ -5,10 +5,10 @@ import Link from 'next/link';
 
 export default function FooterWrapper() {
   const pathname = usePathname();
-  const hideFooterPaths = ['/upload'];
+  const hideFooterPaths = ['/upload', '/upload/edit'];
   
-  // Don't render footer on specified paths
-  if (hideFooterPaths.includes(pathname)) {
+  // Don't render footer on specified paths or if the path starts with /upload/edit/
+  if (hideFooterPaths.includes(pathname) || pathname.startsWith('/upload/edit/')) {
     return null;
   }
 
