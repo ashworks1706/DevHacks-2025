@@ -62,12 +62,12 @@ export default function Home() {
             />
           </div>
           <h1 className="text-5xl lg:text-7xl font-md mb-6 mt-10 text-center">
-            Fix Your Style With <b className='text-green-500'>AI</b>
+            Fix Your Style With <b className='text-[#8c66ff]'>AI</b>
           </h1>
           <div className="flex mb-8">
             <h2 className="text-2xl font-bold">
               Personalized Outfit Ideas,{' '}
-              <span className="bg-green-500 text-white px-3 py-1 rounded-md ml-1">
+              <span className="bg-[#8c66ff] text-white px-3 py-1 rounded-md ml-1">
                 Instantly & Free
               </span>
             </h2>
@@ -85,7 +85,7 @@ export default function Home() {
             <div className="flex flex-col items-center justify-center h-full text-center pt-25">
               <button
                 onClick={handleUploadClick}
-                className="cursor-pointer bg-green-600 text-white text-3xl font-semibold py-4 px-10 rounded-full mb-8 hover:bg-green-500 transition-colors"
+                className="cursor-pointer bg-[#8c66ff] text-white text-3xl font-semibold py-4 px-10 rounded-full mb-8 hover:bg-[#7b5cf0] transition-colors"
               >
                 Upload Photo
               </button>
@@ -94,7 +94,7 @@ export default function Home() {
                 or drop an image,
               </p>
               <p className="text-black">
-                paste a <span className="text-green-400 underline">URL</span>
+                paste a <span className="text-[#8c66ff] underline">URL</span>
               </p>
               
               <input
@@ -109,7 +109,7 @@ export default function Home() {
               {selectedFile && (
                 <div className="mt-8 p-3 bg-gray-200 rounded-lg w-full">
                   <div className="flex items-center">
-                    <div className="bg-green-500 p-2 rounded mr-3">
+                    <div className="bg-[#8c66ff] p-2 rounded mr-3">
                       <FiUpload className="text-white" />
                     </div>
                     <div className="text-left">
@@ -178,9 +178,9 @@ export default function Home() {
             </div>
             <div className="mt-8 text-xs text-gray-600">
               By uploading an image or URL you agree to our{' '}
-              <Link href="/terms" className="text-green-400 underline">Terms of Service</Link>.
+              <Link href="/terms" className="text-[#8c66ff] underline">Terms of Service</Link>.
               To learn more about how our Wardrobe Assistant handles your personal data, check our{' '}
-              <Link href="/privacy" className="text-green-400 underline">Privacy Policy</Link>.
+              <Link href="/privacy" className="text-[#8c66ff] underline">Privacy Policy</Link>.
             </div>
           </div>
         </div>

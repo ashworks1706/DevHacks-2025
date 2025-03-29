@@ -28,17 +28,17 @@ export default function FooterWrapper() {
               <h4 className="text-black font-medium mb-3">Product</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/features" className="hover:text-green-400 transition-colors">
+                  <Link href="/features" className="hover:text-[#8c66ff] transition-colors">
                     Features
                   </Link>
                 </li>
                 <li>
-                  <Link href="/outfits" className="hover:text-green-400 transition-colors">
+                  <Link href="/outfits" className="hover:text-[#8c66ff] transition-colors">
                     Outfits
                   </Link>
                 </li>
                 <li>
-                  <Link href="/upload" className="hover:text-green-400 transition-colors">
+                  <Link href="/upload" className="hover:text-[#8c66ff] transition-colors">
                     Upload Photo
                   </Link>
                 </li>
@@ -48,17 +48,17 @@ export default function FooterWrapper() {
               <h4 className="text-black font-medium mb-3">Resources</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/blog" className="hover:text-green-400 transition-colors">
+                  <Link href="/blog" className="hover:text-[#8c66ff] transition-colors">
                     Blog
                   </Link>
                 </li>
                 <li>
-                  <Link href="/style-guides" className="hover:text-green-400 transition-colors">
+                  <Link href="/style-guides" className="hover:text-[#8c66ff] transition-colors">
                     Style Guides
                   </Link>
                 </li>
                 <li>
-                  <Link href="/faq" className="hover:text-green-400 transition-colors">
+                  <Link href="/faq" className="hover:text-[#8c66ff] transition-colors">
                     FAQ
                   </Link>
                 </li>
@@ -68,17 +68,17 @@ export default function FooterWrapper() {
               <h4 className="text-black font-medium mb-3">Company</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/about" className="hover:text-green-400 transition-colors">
+                  <Link href="/about" className="hover:text-[#8c66ff] transition-colors">
                     About
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="hover:text-green-400 transition-colors">
+                  <Link href="/contact" className="hover:text-[#8c66ff] transition-colors">
                     Contact
                   </Link>
                 </li>
                 <li>
-                  <Link href="/careers" className="hover:text-green-400 transition-colors">
+                  <Link href="/careers" className="hover:text-[#8c66ff] transition-colors">
                     Careers
                   </Link>
                 </li>
@@ -88,12 +88,12 @@ export default function FooterWrapper() {
               <h4 className="text-black font-medium mb-3">Legal</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/privacy" className="hover:text-green-400 transition-colors">
+                  <Link href="/privacy" className="hover:text-[#8c66ff] transition-colors">
                     Privacy
                   </Link>
                 </li>
                 <li>
-                  <Link href="/terms" className="hover:text-green-400 transition-colors">
+                  <Link href="/terms" className="hover:text-[#8c66ff] transition-colors">
                     Terms
                   </Link>
                 </li>
