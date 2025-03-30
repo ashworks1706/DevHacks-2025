@@ -10,6 +10,7 @@ import gsap from 'gsap';
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const router = useRouter();
@@ -53,6 +54,13 @@ export default function Home() {
     if (file) {
       setSelectedFile(file);
       console.log("Selected file:", file);
+      
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Upload the file
+      uploadFileAndNavigate(formData);
     }
   }
 
@@ -71,14 +79,73 @@ export default function Home() {
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-      console.log("Dropped file:", e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      setSelectedFile(file);
+      console.log("Dropped file:", file);
+      
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Upload the file
+      uploadFileAndNavigate(formData);
     }
   }
 
   function handleUploadClick() {
-    // Navigate to upload page with query parameter to trigger file dialog
-    router.push('/upload?autoOpen=true');
+    fileInputRef.current?.click();
+  }
+
+  // Function to handle sample image clicks
+  async function handleSampleImageClick(imageNumber: number) {
+    try {
+      setUploading(true);
+      const imagePath = `/images/test_pic${imageNumber}.png`;
+      console.log("Selected sample image:", imagePath);
+      
+      // Fetch the sample image as a blob
+      const response = await fetch(imagePath);
+      const blob = await response.blob();
+      
+      // Create a File object from the blob
+      const file = new File([blob], `sample_${imageNumber}.png`, { type: 'image/png' });
+      
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Upload the file
+      uploadFileAndNavigate(formData);
+    } catch (error) {
+      setUploading(false);
+      console.error("Error handling sample image:", error);
+    }
+  }
+  
+  // Function to upload file and navigate to edit page
+  async function uploadFileAndNavigate(formData: FormData) {
+    try {
+      setUploading(true);
+      // Send the file to the server
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
+      }
+      
+      // Get the response data
+      const data = await response.json();
+      console.log("Upload successful:", data);
+      
+      // Navigate to the edit page
+      router.push(`/upload/edit?image=${encodeURIComponent(data.filePath)}&sessionId=${encodeURIComponent(data.sessionId)}`);
+    } catch (error) {
+      setUploading(false);
+      console.error("Error uploading file:", error);
+    }
   }
 
   // Initialize GSAP animations
@@ -465,6 +532,16 @@ export default function Home() {
       {/* Container for SVG squiggly lines */}
       <div className="absolute inset-0 w-full h-full" ref={svgContainerRef}></div>
       
+      {/* Loading overlay */}
+      {uploading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg flex flex-col items-center">
+            <div className="w-12 h-12 border-4 border-[#8c66ff] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-lg font-medium">Processing your image...</p>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto px-6 py-16 flex flex-col lg:flex-row items-start relative z-10">
         {/* Left side - Text content */}
         <div className="w-full lg:w-1/2 mb-12 lg:mb-0 lg:pr-12" ref={leftSideRef}>
@@ -483,7 +560,7 @@ export default function Home() {
             />
           </div>
           <h1 className="text-5xl lg:text-7xl font-md mb-6 mt-10 text-center overflow-hidden" ref={titleRef}>
-            Fix Your Style With <b className='text-[#8c66ff]'>AI</b>
+            Fix Your Style With<b className='text-[#8c66ff]'>AI</b>
           </h1>
           <div className="flex mb-8">
             <h2 className="text-2xl font-bold">
@@ -564,14 +641,21 @@ export default function Home() {
               <div className="md:w-4/4">
                 <div className="grid grid-cols-4 gap-4">
                   {[1, 2, 3, 4].map((num) => (
-                    <div key={num} className="cursor-pointer hover:opacity-80 transition-opacity">
+                    <div 
+                      key={num} 
+                      className="cursor-pointer transition-opacity relative group"
+                      onClick={() => handleSampleImageClick(num)}
+                    >
                       <Image 
                         src={`/images/test_pic${num}.png`}
-                        alt="Sample outfit" 
+                        alt={`Sample outfit ${num}`}
                         width={100} 
                         height={100} 
                         className="rounded-xl object-cover w-20 h-20"
                       />
+                      <div className="absolute inset-0  bg-opacity-0 group-hover:bg-opacity-20 rounded-xl transition-all duration-200 flex items-center justify-center">
+                        <span className="text-white opacity-0 group-hover:opacity-100 font-bold text-xs">Use this</span>
+                      </div>
                     </div>
                   ))}
                 </div>

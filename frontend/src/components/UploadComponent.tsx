@@ -128,10 +128,41 @@ const UploadComponent = () => {
     fileInputRef.current?.click();
   };
 
-  const handleSampleImageClick = (imagePath: string) => {
-    // For demo purposes, treat sample images as if they were uploaded
-    // Note: Sample images won't have chat history since they're predefined
-    router.push(`/upload/edit?image=${encodeURIComponent(imagePath)}`);
+  // Improved sample image handler with proper file creation and upload
+  const handleSampleImageClick = async (imagePath: string) => {
+    try {
+      setUploadStatus('Processing sample image...');
+      console.log("Selected sample image:", imagePath);
+      
+      // Fetch the sample image as a blob
+      const response = await fetch(imagePath);
+      if (!response.ok) {
+        throw new Error('Failed to fetch sample image');
+      }
+      
+      const blob = await response.blob();
+      
+      // Extract image name from path
+      const imageName = imagePath.split('/').pop() || 'sample.png';
+      
+      // Create a File object from the blob
+      const file = new File([blob], imageName, { type: 'image/png' });
+      
+      setSelectedFile(file);
+      const fileUrl = URL.createObjectURL(file);
+      setSelectedFileUrl(fileUrl);
+      
+      // Save the file to the user folder
+      const { filePath, sessionId } = await saveFileToUserFolder(file);
+      
+      // Navigate to the edit page after a short delay with session ID
+      setTimeout(() => {
+        router.push(`/upload/edit?image=${encodeURIComponent(filePath)}&sessionId=${encodeURIComponent(sessionId)}`);
+      }, 500);
+    } catch (error) {
+      console.error("Error handling sample image:", error);
+      setUploadStatus('Failed to process sample image. Please try again.');
+    }
   };
 
   return (
@@ -140,7 +171,7 @@ const UploadComponent = () => {
         {/* Upload area */}
         <div className="space-y-4">
           <div 
-            className={`p-15 rounded-3xl transition-colors w-full mx-auto min-h-[400px]  ${isDragging ? 'border-2 border-[#8c66ff]' : ''}`}
+            className={`p-15 rounded-3xl transition-colors w-full mx-auto min-h-[400px] ${isDragging ? 'border-2 border-[#8c66ff] bg-purple-50' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -226,54 +257,24 @@ const UploadComponent = () => {
               No photos? Try one of these:
             </p>
             <div className="grid grid-cols-4 gap-2">
-              <div 
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => handleSampleImageClick('/images/test_pic1.png')}
-              >
-                <Image 
-                  src="/images/test_pic1.png" 
-                  alt="Sample outfit" 
-                  width={100} 
-                  height={100} 
-                  className="rounded-2xl object-cover w-20 h-20"
-                />
-              </div>
-              <div 
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => handleSampleImageClick('/images/test_pic2.png')}
-              >
-                <Image 
-                  src="/images/test_pic2.png" 
-                  alt="Sample outfit" 
-                  width={100} 
-                  height={100} 
-                  className="rounded-2xl object-cover w-20 h-20"
-                />
-              </div>
-              <div 
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => handleSampleImageClick('/images/test_pic3.png')}
-              >
-                <Image 
-                  src="/images/test_pic3.png" 
-                  alt="Sample outfit" 
-                  width={100} 
-                  height={100} 
-                  className="rounded-2xl object-cover w-20 h-20"
-                />
-              </div>
-              <div 
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => handleSampleImageClick('/images/test_pic4.png')}
-              >
-                <Image 
-                  src="/images/test_pic4.png" 
-                  alt="Sample outfit" 
-                  width={100} 
-                  height={100} 
-                  className="rounded-2xl object-cover w-20 h-20"
-                />
-              </div>
+              {[1, 2, 3, 4].map((num) => (
+                <div 
+                  key={num}
+                  className="cursor-pointer hover:opacity-80 transition-opacity relative group"
+                  onClick={() => handleSampleImageClick(`/images/test_pic${num}.png`)}
+                >
+                  <Image 
+                    src={`/images/test_pic${num}.png`}
+                    alt={`Sample outfit ${num}`}
+                    width={100} 
+                    height={100} 
+                    className="rounded-2xl object-cover w-20 h-20"
+                  />
+                  <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-20 rounded-2xl transition-all duration-200 flex items-center justify-center">
+                    <span className="text-white opacity-0 group-hover:opacity-100 font-bold text-xs">Use this</span>
+                  </div>
+                </div>
+              ))}
             </div>
           
             {/* Terms of Service */}
