@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       sessionId: sessionId,
       replies: []
     };
-    const repliesFilePath = path.join(userFolderPath, `replies_${sessionId}.json`);
+    const repliesFilePath = path.join(userFolderPath, `chat_history.json`);
     fs.writeFileSync(repliesFilePath, JSON.stringify(repliesData, null, 2));
     
     // Create responses.json file
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       sessionId: sessionId,
       responses: []
     };
-    const responsesFilePath = path.join(userFolderPath, `responses_${sessionId}.json`);
+    const responsesFilePath = path.join(userFolderPath, `responses.json`);
     fs.writeFileSync(responsesFilePath, JSON.stringify(responsesData, null, 2));
     
     return NextResponse.json(

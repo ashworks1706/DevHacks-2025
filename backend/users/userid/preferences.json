@@ -1,0 +1,30 @@
+{
+    "user_id": "user_12345",
+    "name": "Alex",
+    "age": 30,
+    "gender": "male",
+    "location": "New York, NY",
+    "onboarding_responses": {
+      "favorite_colors": ["blue", "black", "gray"],
+      "dominant_colors": ["navy", "black"],
+      "preferred_materials": ["cotton", "denim", "leather"],
+      "preferred_patterns": ["solid", "plaid"],
+      "style_preferences": ["casual", "modern", "minimalist"],
+      "fashion_influences": ["Steve McQueen", "James Dean"],
+      "wardrobe_challenges": "Limited variety in patterns and materials; looking to add more statement pieces",
+      "budget": "moderate",
+      "lifestyle": {
+        "work": "corporate",
+        "social": "active",
+        "climate": "temperate"
+      }
+    },
+    "style_profile": {
+      "casual": 80,
+      "formal": 10,
+      "active": 10,
+      "pattern_variability": "low",
+      "material_variety": "medium"
+    }
+  }
+  

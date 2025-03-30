@@ -1,0 +1,13 @@
+google-generativeai
+requests
+google-genai 
+opencv-python 
+pyaudio 
+pillow 
+mss
+scikit-learn
+python-dotenv
+pytest
+requests
+selenium
+pyttsx3
