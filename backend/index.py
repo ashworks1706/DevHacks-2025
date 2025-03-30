@@ -188,35 +188,6 @@ async def create_superior_agent(query, image_path,user_id):
     save_chat_history(chat_history, f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json") 
 
     # /home/ash/DevHacks-2025/frontend/public/users/user_2v1sELLPUpnBpR8pviRBtRvMFqE/chat_history.json
-    user_info = load_user_info(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/preferences.json")
-    
-
-    user_info_string = f"""User Profile:
-        User ID: {user_info['user_id']}
-        Name: {user_info['name']}, Age: {user_info['age']}, Gender: {user_info['gender']}
-        Location: {user_info['location']}
-
-        Onboarding Responses:
-            Favorite Colors: {', '.join(user_info['onboarding_responses']['favorite_colors'])}
-            Dominant Colors: {', '.join(user_info['onboarding_responses']['dominant_colors'])}
-            Preferred Materials: {', '.join(user_info['onboarding_responses']['preferred_materials'])}
-            Preferred Patterns: {', '.join(user_info['onboarding_responses']['preferred_patterns'])}
-            Style Preferences: {', '.join(user_info['onboarding_responses']['style_preferences'])}
-            Fashion Influences: {user_info['onboarding_responses']['fashion_influences']}
-            Wardrobe Challenges: {user_info['onboarding_responses']['wardrobe_challenges']}
-            Budget: {user_info['onboarding_responses']['budget']}
-            Lifestyle:
-                Work: {user_info['onboarding_responses']['lifestyle']['work']}
-                Social: {user_info['onboarding_responses']['lifestyle']['social']}
-                Climate: {user_info['onboarding_responses']['lifestyle']['climate']}
-
-        Style Profile:
-            Casual: {user_info['style_profile']['casual']}%
-            Formal: {user_info['style_profile']['formal']}%
-            Active: {user_info['style_profile']['active']}%
-            Pattern Variability: {user_info['style_profile']['pattern_variability']}
-            Material Variety: {user_info['style_profile']['material_variety']}
-        """
     
     tools = [
             types.Tool(
@@ -542,88 +513,143 @@ Present your analysis in a structured format with visual cues detected from the 
         )
         
         model = "gemini-2.0-flash"
-        
-        old_contents = []
-        old_contents.append(
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=f"{user_info_string}")]
-            ),
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=instruction_to_agent)]
-            )
-        )
+        user_info = load_user_info(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/preferences.json")
+    
 
-        generation_result = client.models.generate_content(
-        model=model,
-        contents=old_contents,
-        config=generate_content_config,
-        )
-        print("\nStyle Agent @ ",generation_result)
+        user_info_string = f"""User Profile:
+            User ID: {user_info['user_id']}
+            Name: {user_info['name']}, Age: {user_info['age']}, Gender: {user_info['gender']}
+            Location: {user_info['location']}
+
+            Onboarding Responses:
+                Favorite Colors: {', '.join(user_info['onboarding_responses']['favorite_colors'])}
+                Dominant Colors: {', '.join(user_info['onboarding_responses']['dominant_colors'])}
+                Preferred Materials: {', '.join(user_info['onboarding_responses']['preferred_materials'])}
+                Preferred Patterns: {', '.join(user_info['onboarding_responses']['preferred_patterns'])}
+                Style Preferences: {', '.join(user_info['onboarding_responses']['style_preferences'])}
+                Fashion Influences: {user_info['onboarding_responses']['fashion_influences']}
+                Wardrobe Challenges: {user_info['onboarding_responses']['wardrobe_challenges']}
+                Budget: {user_info['onboarding_responses']['budget']}
+                Lifestyle:
+                    Work: {user_info['onboarding_responses']['lifestyle']['work']}
+                    Social: {user_info['onboarding_responses']['lifestyle']['social']}
+                    Climate: {user_info['onboarding_responses']['lifestyle']['climate']}
+
+            Style Profile:
+                Casual: {user_info['style_profile']['casual']}%
+                Formal: {user_info['style_profile']['formal']}%
+                Active: {user_info['style_profile']['active']}%
+                Pattern Variability: {user_info['style_profile']['pattern_variability']}
+                Material Variety: {user_info['style_profile']['material_variety']}
+            """
+
+        old_contents = []
+        try:
+            old_contents.append(
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=f"{user_info_string}")]
+                )
+            )
+            old_contents.append(
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=instruction_to_agent)]
+                )
+            )
+        except Exception as e:
+            print(f"Error creating content: {e}")
+            return f"Error in style matching agent: {str(e)}"
+
+        try:
+            generation_result = client.models.generate_content(
+            model=model,
+            contents=old_contents,
+            config=generate_content_config,
+            )
+            print("\nStyle Agent @ ",generation_result)
+        except Exception as e:
+            print(f"Error generating content: {e}")
+            return f"Error in style matching agent: {str(e)}"
         
         has_function_calls = True
         while has_function_calls:
             has_function_calls = False
             
             for candidate in generation_result.candidates:
-                for part in candidate.content.parts:
-                    if hasattr(part, 'text') and part.text:
-                        print("\nText detected in style agent\n")
-                        text_response = part.text
-                        # No need to add to chat_history in this sub-agent
-                        old_contents.append(types.Content(
-                            role="model",
-                            parts=[
-                                types.Part.from_text(
-                                    text=text_response
-                                )
-                            ]
-                        ))
-                    
-                    if not (hasattr(part, 'function_call') or part.function_call):
-                        print("\nNo function call detected in style agent\n")
-                        has_function_calls = False
-                        continue
-                    
-                    if hasattr(part, 'function_call') and part.function_call:
-                        print("\nFunction call detected in style agent\n")
-                        has_function_calls = True
-                        function_call = part.function_call
+                try:
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            print("\nText detected in style agent\n")
+                            text_response = part.text
+                            # No need to add to chat_history in this sub-agent
+                            old_contents.append(types.Content(
+                                role="model",
+                                parts=[
+                                    types.Part.from_text(
+                                        text=text_response
+                                    )
+                                ]
+                            ))
                         
-                        if function_call.name == "pinterest_search":
-                            query = function_call.args["query"]
-                            pinterest_images = await pinterest_search(query)
+                        if not (hasattr(part, 'function_call') or part.function_call):
+                            print("\nNo function call detected in style agent\n")
+                            has_function_calls = False
+                            continue
+                        
+                        if hasattr(part, 'function_call') and part.function_call:
+                            print("\nFunction call detected in style agent\n")
+                            has_function_calls = True
+                            function_call = part.function_call
                             
-                            # Update the conversation context with the Pinterest search results
-                            new_content = types.Content(
-                                role="user",
-                                parts=[types.Part.from_text(text=f"Pinterest search returned these images: {pinterest_images}. Analyze these images for inspiration and provide fashion recommendations based on the user's closet and the Pinterest results."), types.Part.from_uri(
-                        file_uri=files[2].uri,
-                        mime_type=files[2].mime_type,
-                    ),types.Part.from_uri(
-                        file_uri=files[3].uri,
-                        mime_type=files[3].mime_type,
-                    ),types.Part.from_uri(
-                        file_uri=files[4].uri,
-                        mime_type=files[4].mime_type,
-                    ),]
-                            )
-                            old_contents.append(new_content)
-                            print("\nPinterest images added to content\n")
-                            
-                            generation_result = client.models.generate_content(
-                                model=model,
-                                contents=old_contents,
-                                config=generate_content_config,
-                            )
-                            print("\nStyle Agent after Pinterest search @", generation_result)
+                            if function_call.name == "pinterest_search":
+                                query = function_call.args["query"]
+                                try:
+                                    pinterest_images = await pinterest_search(query)
+                                except Exception as e:
+                                    print(f"Error during Pinterest search: {e}")
+                                    pinterest_images = "Error during Pinterest search"
+                                
+                                # Update the conversation context with the Pinterest search results
+                                try:
+                                    new_content = types.Content(
+                                        role="user",
+                                        parts=[types.Part.from_text(text=f"Pinterest search returned these images: {pinterest_images}. Analyze these images for inspiration and provide fashion recommendations based on the user's closet and the Pinterest results."), types.Part.from_uri(
+                                        file_uri=files[2].uri,
+                                        mime_type=files[2].mime_type,
+                                    ),types.Part.from_uri(
+                                        file_uri=files[3].uri,
+                                        mime_type=files[3].mime_type,
+                                    ),types.Part.from_uri(
+                                        file_uri=files[4].uri,
+                                        mime_type=files[4].mime_type,
+                                    ),]
+                                    )
+                                    old_contents.append(new_content)
+                                    print("\nPinterest images added to content\n")
+                                except Exception as e:
+                                    print(f"Error creating new content with Pinterest images: {e}")
+                                    
+                                try:
+                                    generation_result = client.models.generate_content(
+                                        model=model,
+                                        contents=old_contents,
+                                        config=generate_content_config,
+                                    )
+                                    print("\nStyle Agent after Pinterest search @", generation_result)
+                                except Exception as e:
+                                    print(f"Error generating content after Pinterest search: {e}")
+                except Exception as e:
+                    print(f"Error processing candidate: {e}")
         
         # Return the final text response
-        for candidate in generation_result.candidates:
-            for part in candidate.content.parts:
-                if hasattr(part, 'text') and part.text:
-                    return part.text
+        try:
+            for candidate in generation_result.candidates:
+                for part in candidate.content.parts:
+                    if hasattr(part, 'text') and part.text:
+                        return part.text
+        except Exception as e:
+            print(f"Error extracting final text response: {e}")
         
         return "No response generated from style matching agent."
         
@@ -708,10 +734,7 @@ Present your analysis in a structured format with visual cues detected from the 
                         ]
                     ))
                     
-                if not (hasattr(part, 'function_call') or part.function_call):
-                    print("\nNo function call detected \n")
-                    has_function_calls = False
-                    break
+                
                     
                     
                 
@@ -720,13 +743,13 @@ Present your analysis in a structured format with visual cues detected from the 
                     has_function_calls = True
                     function_call = part.function_call
                     function_response = await handle_function_call(function_call)
-                    
+                    print("he;;o")
                     # Update the conversation context with the function call response
                     new_content = types.Content(
                         role="user",
                         parts=[
                             types.Part.from_text(
-                                text=f"(System Generated, User cannot see this)\n{function_call} : Response :\n{function_response}.\n Please analyze the response and determine if you need to call more function tool agents to get the final response.\n If not, respond directly to user.\n",
+                                text=f"(System Generated, User cannot see this)\n{function_call} : Response :\n{function_response}.\n Please analyze the response and determine if you need to call more function tool agents to get the final response.\n PLEASE PAY ATTETNION",
                             ),
                         ]
                     )
@@ -740,7 +763,10 @@ Present your analysis in a structured format with visual cues detected from the 
                     )
                     print("\nSuperior Agent after function call @ ", generation_result)
             
-
+                    if not (hasattr(part, 'function_call') or part.function_call):
+                        print("\nNo function call detected \n")
+                        has_function_calls = False
+                        break
     
     global grounding_sources
     if grounding_sources:

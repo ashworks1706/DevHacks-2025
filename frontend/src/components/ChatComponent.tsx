@@ -12,12 +12,12 @@ interface ChatMessage {
   role: 'user' | 'ai';
   content: string;
   isLoading?: boolean;
-  id?: string; // For tracking messages
 }
 
 const ChatComponent = () => {
   const { user } = useUser();
   const userId = user?.id;
+  console.log(userId)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -25,8 +25,6 @@ const ChatComponent = () => {
   const inputRef = useRef<HTMLDivElement>(null);
   const [systemStatus, setSystemStatus] = useState<'idle' | 'processing' | 'completed' | 'error'>('idle');
   const [statusMessages, setStatusMessages] = useState<any>([]);
-  const [lastMessageTimestamp, setLastMessageTimestamp] = useState<number>(0);
-  const [chatHistoryLoaded, setChatHistoryLoaded] = useState(false);
 
   useEffect(() => {
     console.log(userId)
@@ -37,18 +35,11 @@ const ChatComponent = () => {
         if (response.ok) {
           const data = await response.json();
           // Map the chat history to the ChatMessage interface
-          const mappedMessages = data.map((message: any, index: number) => ({
+          const mappedMessages = data.map((message: any) => ({
             role: message.user ? 'user' : 'ai',
             content: message.user || message.model,
-            id: `history-${index}`,
           }));
-          
-          // Only update if we have new messages and chat history hasn't been loaded yet
-          if (!chatHistoryLoaded || JSON.stringify(mappedMessages) !== JSON.stringify(chatMessages)) {
-            setChatMessages(mappedMessages);
-            setIsAiTyping(false); // Turn off typing indicator when we get the real response
-            setChatHistoryLoaded(true); // Mark chat history as loaded
-          }
+          setChatMessages(mappedMessages);
         } else {
           console.error('Failed to fetch chat history:', response.status);
         }
@@ -57,19 +48,11 @@ const ChatComponent = () => {
       }
     };
 
-    // Initial fetch
     fetchChatHistory();
-    
-    // Only start polling if the user has sent a message recently
-    let intervalId: NodeJS.Timeout;
-    if (lastMessageTimestamp > 0 && Date.now() - lastMessageTimestamp < 30000) {
-      intervalId = setInterval(fetchChatHistory, 2000); // Fetch every 2 seconds
-    }
+    const intervalId = setInterval(fetchChatHistory, 2000); // Fetch every 2 seconds
 
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    }
-  }, [userId, lastMessageTimestamp, chatHistoryLoaded]);
+    return () => clearInterval(intervalId); // Clean up interval on unmount
+  }, [userId]);
 
   useEffect(() => {
     const fetchStatusMessages = async () => {
@@ -106,15 +89,8 @@ const ChatComponent = () => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isAiTyping || !userId) return;
 
-    // Generate a unique ID for this message
-    const messageId = `msg-${Date.now()}`;
-    
-    // Add user message to chat immediately
-    setChatMessages(prev => [...prev, { 
-      role: 'user', 
-      content: inputMessage,
-      id: messageId
-    }]);
+    // Add user message to chat - optimistically update
+    setChatMessages(prev => [...prev, { role: 'user', content: inputMessage }]);
 
     // Clear input and reset contentEditable div
     setInputMessage('');
@@ -122,11 +98,6 @@ const ChatComponent = () => {
       inputRef.current.textContent = '';
     }
 
-    // Show AI typing indicator immediately
-    setIsAiTyping(true);
-    setSystemStatus('processing');
-    setLastMessageTimestamp(Date.now());
-    
     try {
       const response = await fetch('http://127.0.0.1:5000/sendMessage', {
         method: 'POST',
@@ -142,12 +113,12 @@ const ChatComponent = () => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      // The actual response will be picked up by the chat history fetch
-      // But we'll keep the typing indicator on until then
+      // No need to handle response, as backend updates chat_history.json
     } catch (error: any) {
       console.error('Error sending message:', error);
-      setIsAiTyping(false);
+      // Revert optimistic update on error
+      setChatMessages(prev => prev.slice(0, -1));
+      // Optionally, display an error message to the user
       setSystemStatus('error');
     }
   };
@@ -174,6 +145,7 @@ const ChatComponent = () => {
     </div>
   );
 
+  console.log(statusMessages)
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-full">
       {/* Status bar */}
@@ -201,20 +173,20 @@ const ChatComponent = () => {
         className="flex-1 overflow-y-auto p-4 space-y-3"
         style={{ maxHeight: 'calc(100vh - 280px)' }}
       >
-        {chatMessages.map((message) => (
+        {chatMessages.map((message, index) => (
           <div 
-            key={message.id || `${message.role}-${message.content.substring(0, 10)}`} 
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+        key={index} 
+        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div 
-              className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                message.role === 'user' 
-                  ? 'bg-[#8c66ff] text-white' 
-                  : 'bg-gray-50 text-black shadow-sm'
-              }`}
-            >
-              {message.content}
-            </div>
+        <div 
+          className={`max-w-[80%] rounded-lg px-3 py-2 ${
+            message.role === 'user' 
+          ? 'bg-[#8c66ff] text-white' 
+          : 'bg-gray-50 text-black shadow-sm'
+          }`}
+        >
+          <div dangerouslySetInnerHTML={{ __html: message.content }} />
+        </div>
           </div>
         ))}
         
