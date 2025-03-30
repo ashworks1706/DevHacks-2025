@@ -311,6 +311,8 @@ Your tone should be friendly yet professional, knowledgeable but approachable. A
                 config=GenerateContentConfig(
                 tools=[Tool(google_search=GoogleSearch())],
                 response_modalities=["TEXT"],
+        maxOutputTokens=500,
+                
                 system_instruction="""You are a specialized Environment Intelligence Agent with expertise in extracting fashion-relevant contextual information. Your mission is to provide precise, actionable data about:
 
                 1) WEATHER CONDITIONS:
@@ -473,6 +475,8 @@ Present your analysis in a structured format with visual cues detected from the 
         except Exception as e:
             return f"Error in Closet analysis agent: {str(e)}"
         
+
+        
     async def access_style_match_agent(instruction_to_agent:str):
         append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", f"Calculating your fit check 💅")
         tools = [
@@ -500,65 +504,97 @@ Present your analysis in a structured format with visual cues detected from the 
         tools=tools,
         system_instruction="""You are a cutting-edge Fashion Curation AI specializing in personalized style matching. Your expertise combines trend forecasting, personal styling, and visual analytics to connect users with their ideal aesthetic.
 
-Your process for generating relevant Pinterest inspiration and recommendations:
+    Your process for generating relevant Pinterest inspiration and recommendations:
 
-1) QUERY GENERATION:
-   - Construct highly specific, targeted Pinterest search queries using a combination of:
-     * User's stated style preferences AND closet analysis
-     * Current season and relevant trends
-     * Occasion-specific keywords
-     * Style modifiers (e.g., "minimalist," "bohemian chic," "corporate casual")
-     * Color-specific terms aligning with user's palette
-   - Format queries with 3-5 precise keywords (example: "minimalist navy office outfits spring 2025")
+    1) QUERY GENERATION:
+    - Construct highly specific, targeted Pinterest search queries using a combination of:
+        * User's stated style preferences AND closet analysis
+        * Current season and relevant trends
+        * Occasion-specific keywords
+        * Style modifiers (e.g., "minimalist," "bohemian chic," "corporate casual")
+        * Color-specific terms aligning with user's palette
+    - Format queries with 3-5 precise keywords (example: "minimalist navy office outfits spring 2025")
 
-2) INSPIRATION ANALYSIS:
-   - When analyzing Pinterest results, evaluate each image for:
-     * Adaptability to user's existing wardrobe
-     * Alignment with body type and lifestyle needs
-     * Current trend relevance (offering both trendy and timeless options)
-     * Versatility and mix-and-match potential
-     * Accessibility within stated budget constraints
+    2) INSPIRATION ANALYSIS:
+    - When analyzing Pinterest results, evaluate each image for:
+        * Adaptability to user's existing wardrobe
+        * Alignment with body type and lifestyle needs
+        * Current trend relevance (offering both trendy and timeless options)
+        * Versatility and mix-and-match potential
+        * Accessibility within stated budget constraints
 
-3) RECOMMENDATION SYNTHESIS:
-   - For each recommendation, provide:
-     * Direct connection to user's style profile
-     * Specific items from user's closet to recreate the look
-     * Suggested additions if something is missing
-     * Multiple styling variations of the same core pieces
-     * Confidence rating on match appropriateness
+    3) RECOMMENDATION SYNTHESIS:
+    - For each recommendation, provide:
+        * Direct connection to user's style profile
+        * Specific items from user's closet to recreate the look
+        * Suggested additions if something is missing
+        * Multiple styling variations of the same core pieces
+        * Confidence rating on match appropriateness
 
-Your outputs should be visual-first, focusing on the specific elements in the Pinterest images that make them suitable for the user. Avoid generic fashion advice and prioritize personalized, actionable recommendations that utilize their existing wardrobe while identifying thoughtful additions.
-""",
+    Your outputs should be visual-first, focusing on the specific elements in the Pinterest images that make them suitable for the user. Avoid generic fashion advice and prioritize personalized, actionable recommendations that utilize their existing wardrobe while identifying thoughtful additions.
+    """,
         temperature=0.4,
         response_mime_type="text/plain",
-
         )
         
         model = "gemini-2.0-flash"
+        
+        old_contents = []
+        old_contents.append(
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=f"{user_info_string}")]
+            ),
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=instruction_to_agent)]
+            )
+        )
 
         generation_result = client.models.generate_content(
         model=model,
-        contents=[types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=user_info_string)]
-        ),
-        types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=instruction_to_agent)]
-        )
-        ],
+        contents=old_contents,
         config=generate_content_config,
         )
         print("\nStyle Agent @ ",generation_result)
         
-        while generation_result.candidates[-1].content.parts[-1].function_call:
-            function_call = generation_result.candidates[-1].content.parts[-1].function_call
-            if function_call.name == "pinterest_search":
-                query = function_call.args["query"]
-                pinterest_images = await pinterest_search(query)
-                
-                # Prepare the content with the Pinterest images
-                content_parts = [types.Part.from_text(text=f"Pinterest search returned these images: {pinterest_images}. Analyze these images for inspiration and provide fashion recommendations based on the user's closet and the Pinterest results."), types.Part.from_uri(
+        has_function_calls = True
+        while has_function_calls:
+            has_function_calls = False
+            
+            for candidate in generation_result.candidates:
+                for part in candidate.content.parts:
+                    if hasattr(part, 'text') and part.text:
+                        print("\nText detected in style agent\n")
+                        text_response = part.text
+                        # No need to add to chat_history in this sub-agent
+                        old_contents.append(types.Content(
+                            role="model",
+                            parts=[
+                                types.Part.from_text(
+                                    text=text_response
+                                )
+                            ]
+                        ))
+                    
+                    if not (hasattr(part, 'function_call') or part.function_call):
+                        print("\nNo function call detected in style agent\n")
+                        has_function_calls = False
+                        continue
+                    
+                    if hasattr(part, 'function_call') and part.function_call:
+                        print("\nFunction call detected in style agent\n")
+                        has_function_calls = True
+                        function_call = part.function_call
+                        
+                        if function_call.name == "pinterest_search":
+                            query = function_call.args["query"]
+                            pinterest_images = await pinterest_search(query)
+                            
+                            # Update the conversation context with the Pinterest search results
+                            new_content = types.Content(
+                                role="user",
+                                parts=[types.Part.from_text(text=f"Pinterest search returned these images: {pinterest_images}. Analyze these images for inspiration and provide fashion recommendations based on the user's closet and the Pinterest results."), types.Part.from_uri(
                         file_uri=files[2].uri,
                         mime_type=files[2].mime_type,
                     ),types.Part.from_uri(
@@ -568,17 +604,24 @@ Your outputs should be visual-first, focusing on the specific elements in the Pi
                         file_uri=files[4].uri,
                         mime_type=files[4].mime_type,
                     ),]
-                    
-                
-                # Generate content again with the Pinterest images
-                generation_result = client.models.generate_content(
-                model=model,
-                contents=[types.Content(role="user", parts=content_parts)],
-                config=generate_content_config,
-                )
-                print("\nStyle Agent nested @ ",generation_result)
-        print("generation_result.candidates[-1].content.parts[-1].text\n",generation_result.candidates[-1].content.parts[-1].text)
-        return generation_result.candidates[-1].content.parts[-1].text
+                            )
+                            old_contents.append(new_content)
+                            print("\nPinterest images added to content\n")
+                            
+                            generation_result = client.models.generate_content(
+                                model=model,
+                                contents=old_contents,
+                                config=generate_content_config,
+                            )
+                            print("\nStyle Agent after Pinterest search @", generation_result)
+        
+        # Return the final text response
+        for candidate in generation_result.candidates:
+            for part in candidate.content.parts:
+                if hasattr(part, 'text') and part.text:
+                    return part.text
+        
+        return "No response generated from style matching agent."
         
     async def handle_function_call(function_call):
         function_name = function_call.name
@@ -679,7 +722,7 @@ Your outputs should be visual-first, focusing on the specific elements in the Pi
                         role="user",
                         parts=[
                             types.Part.from_text(
-                                text=f"(System Generated, User cannot see this)\n{function_call} : Response :\n{function_response}.\n"
+                                text=f"(System Generated, User cannot see this)\n{function_call} : Response :\n{function_response}.\n Please analyze the response and determine if you need to call more function tool agents to get the final response.\n If not, respond directly to user.\n",
                             ),
                         ]
                     )
