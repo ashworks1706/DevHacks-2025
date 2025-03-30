@@ -6,21 +6,47 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
+import { MarkerArea } from '@markerjs/markerjs3';
+
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [titleVisible, setTitleVisible] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const router = useRouter();
+  
+  // Initial effect to control title visibility
+  useEffect(() => {
+    // Use requestAnimationFrame to wait for the browser to paint
+    // This ensures we don't get a flash of unstyled content
+    const raf = requestAnimationFrame(() => {
+      if (titleRef.current) {
+        // Keep title hidden until our GSAP animations start
+        titleRef.current.style.visibility = 'hidden';
+      }
+      
+      // The GSAP effect in the other useEffect will make it visible
+      setTitleVisible(true);
+    });
+    
+    return () => cancelAnimationFrame(raf);
+  }, []);
   
   // Refs for GSAP animations
   const containerRef = useRef<HTMLDivElement>(null);
   const leftSideRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const aiTextRef = useRef<HTMLElement>(null); // New ref for the AI text
   const uploadBoxRef = useRef<HTMLDivElement>(null);
   const uploadButtonRef = useRef<HTMLButtonElement>(null);
   const svgContainerRef = useRef<HTMLDivElement>(null);
+  const instantlyFreeRef = useRef<HTMLSpanElement>(null);
+
+  
 
   useEffect(() => {
     const video = videoRef.current;
@@ -48,11 +74,80 @@ export default function Home() {
     };
   }, []);
 
+  // New useEffect for the animated gradient
+  useEffect(() => {
+    // First check if aiTextRef is populated
+    if (!aiTextRef.current) {
+      // If it's not populated, try to find it by ID
+      const aiElement = document.getElementById('ai-text-element') as HTMLElement;
+      if (aiElement) {
+        aiTextRef.current = aiElement;
+      } else {
+        // If still not found, try to find the element with direct text matching
+        const spans = document.querySelectorAll('b, span');
+        for (const span of spans) {
+          if (span.textContent === 'AI') {
+            aiTextRef.current = span as HTMLElement;
+            break;
+          }
+        }
+      }
+    }
+    
+    // Now check again if we have a reference
+    if (!aiTextRef.current) return;
+    
+    // Add animation to the AI text
+    const animateGradient = () => {
+      const element = aiTextRef.current;
+      if (!element) return;
+
+      let hue = 0;
+      
+      const animate = () => {
+        // Use a slower increment for smoother animation
+        hue = (hue + 0.2) % 60; // Much smaller increment
+        // Use purple shades - base is around 270 degrees in HSL
+        const color1 = `hsl(${260 + hue/4}, 80%, 65%)`; // Lighter purple
+        const color2 = `hsl(${280 + hue/4}, 90%, 45%)`; // Darker purple
+        
+        // Apply the gradient and make text transparent
+        element.style.backgroundImage = `linear-gradient(45deg, ${color1}, ${color2})`;
+        element.style.webkitBackgroundClip = 'text';
+        element.style.backgroundClip = 'text';
+        element.style.color = 'transparent';
+        
+        // Ensure the element is visible with proper CSS
+        element.style.display = 'inline-block';
+        element.style.opacity = '1';
+        
+        requestAnimationFrame(animate);
+      };
+      
+      animate();
+    };
+    
+    // Start the animation
+    const animationId = requestAnimationFrame(animateGradient);
+    
+    // Clean up
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, []);
+
   function handleFileSelect(e: ChangeEvent<HTMLInputElement>): void {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       console.log("Selected file:", file);
+      
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Upload the file
+      uploadFileAndNavigate(formData);
     }
   }
 
@@ -71,14 +166,73 @@ export default function Home() {
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-      console.log("Dropped file:", e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      setSelectedFile(file);
+      console.log("Dropped file:", file);
+      
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Upload the file
+      uploadFileAndNavigate(formData);
     }
   }
 
   function handleUploadClick() {
-    // Navigate to upload page with query parameter to trigger file dialog
-    router.push('/upload?autoOpen=true');
+    fileInputRef.current?.click();
+  }
+
+  // Function to handle sample image clicks
+  async function handleSampleImageClick(imageNumber: number) {
+    try {
+      setUploading(true);
+      const imagePath = `/images/test_pic${imageNumber}.png`;
+      console.log("Selected sample image:", imagePath);
+      
+      // Fetch the sample image as a blob
+      const response = await fetch(imagePath);
+      const blob = await response.blob();
+      
+      // Create a File object from the blob
+      const file = new File([blob], `sample_${imageNumber}.png`, { type: 'image/png' });
+      
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Upload the file
+      uploadFileAndNavigate(formData);
+    } catch (error) {
+      setUploading(false);
+      console.error("Error handling sample image:", error);
+    }
+  }
+  
+  // Function to upload file and navigate to edit page
+  async function uploadFileAndNavigate(formData: FormData) {
+    try {
+      setUploading(true);
+      // Send the file to the server
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
+      }
+      
+      // Get the response data
+      const data = await response.json();
+      console.log("Upload successful:", data);
+      
+      // Navigate to the edit page
+      router.push(`/upload/edit?image=${encodeURIComponent(data.filePath)}&sessionId=${encodeURIComponent(data.sessionId)}`);
+    } catch (error) {
+      setUploading(false);
+      console.error("Error uploading file:", error);
+    }
   }
 
   // Initialize GSAP animations
@@ -86,20 +240,25 @@ export default function Home() {
     // Create squiggly lines SVG in the background
     createSquigglyLines();
     
-    // Animate the title without SplitText plugin
-    const titleElement = titleRef.current;
-    if (titleElement) {
-      // Get the original text content
-      const titleContent = titleElement.textContent || "";
-      
-      // Parse out the main text (everything before "AI")
-      const mainText = titleContent.replace("AI", "");
-      
-      // Clear the original text
-      titleElement.innerHTML = '';
-      
-      // Split and create character spans for the main text
-      mainText.split('').forEach(char => {
+    // Use a small delay to ensure components are fully mounted 
+    // and we don't get a flash of unstyled content
+    const titleAnimationDelay = setTimeout(() => {
+      // Ensure the title is ready for animation
+      const titleElement = titleRef.current;
+      if (titleElement) {
+        // First make sure the container itself is visible with opacity 1
+        titleElement.style.visibility = "visible";
+        titleElement.style.opacity = "1";
+        
+        // Get the original text content - we're getting text from the spans now
+        const titleText = "Fix Your Style With";
+        const aiText = "AI";
+        
+        // Clear the original text
+        titleElement.innerHTML = '';
+        
+        // Split and create character spans for the main text
+        titleText.split('').forEach(char => {
         if (char !== ' ') {
           const charSpan = document.createElement('span');
           charSpan.className = 'char';
@@ -127,10 +286,17 @@ export default function Home() {
       aiSpan.style.display = 'inline-block';
       aiSpan.style.opacity = '0';
       aiSpan.style.transform = 'translateY(40px) scale(0)';
+      // Initially set a fallback color in case gradient doesn't work
       aiSpan.style.color = '#8c66ff';
       aiSpan.style.fontWeight = 'bold';
       aiSpan.textContent = 'AI';
+      
+      // Set reference to aiTextRef for gradient animation
+      aiSpan.id = 'ai-text-element';
       titleElement.appendChild(aiSpan);
+      
+      // Set the aiTextRef to the created span element
+      aiTextRef.current = aiSpan;
       
       // Animate each character
       const chars = titleElement.querySelectorAll('.char');
@@ -142,6 +308,15 @@ export default function Home() {
         stagger: 0.03,
         ease: "back.out(1.7)"
       });
+      
+      // Mark as initialized
+      setIsInitialized(true);
+    }
+    }, 50); // Very small delay to prevent flash of unstyled content
+    
+    // Cleanup the timeout on unmount
+    return () => {
+      clearTimeout(titleAnimationDelay);
     }
     
     // Subtle pulse animation for upload button (continuous)
@@ -309,6 +484,78 @@ export default function Home() {
     }
   };
 
+  // New useEffect for the animated gradient
+useEffect(() => {
+  // First check if aiTextRef is populated
+  if (!aiTextRef.current) {
+    // If it's not populated, try to find it by ID
+    const aiElement = document.getElementById('ai-text-element') as HTMLElement;
+    if (aiElement) {
+      aiTextRef.current = aiElement;
+    } else {
+      // If still not found, try to find the element with direct text matching
+      const spans = document.querySelectorAll('b, span');
+      for (const span of spans) {
+        if (span.textContent === 'AI') {
+          aiTextRef.current = span as HTMLElement;
+          break;
+        }
+      }
+    }
+  }
+  
+  // Now check again if we have a reference
+  if (!aiTextRef.current) return;
+  
+  // Add animation to the AI text
+  const animateGradient = () => {
+    const element = aiTextRef.current;
+    if (!element) return;
+
+    let hue = 0;
+    let direction = 1; // 1 for forward, -1 for reverse
+    const maxHue = 60; // Maximum hue variation
+    
+    const animate = () => {
+      // Use a slower increment for smoother animation
+      hue = hue + (0.2 * direction);
+      
+      // Reverse direction when reaching bounds
+      if (hue >= maxHue) {
+        direction = -1;
+      } else if (hue <= 0) {
+        direction = 1;
+      }
+      
+      // Use purple shades - base is around 270 degrees in HSL
+      const color1 = `hsl(${260 + hue/4}, 80%, 65%)`; // Lighter purple
+      const color2 = `hsl(${280 + hue/4}, 90%, 45%)`; // Darker purple
+      
+      // Apply the gradient and make text transparent
+      element.style.backgroundImage = `linear-gradient(45deg, ${color1}, ${color2})`;
+      element.style.webkitBackgroundClip = 'text';
+      element.style.backgroundClip = 'text';
+      element.style.color = 'transparent';
+      
+      // Ensure the element is visible with proper CSS
+      element.style.display = 'inline-block';
+      element.style.opacity = '1';
+      
+      requestAnimationFrame(animate);
+    };
+    
+    animate();
+  };
+  
+  // Start the animation
+  const animationId = requestAnimationFrame(animateGradient);
+  
+  // Clean up
+  return () => {
+    cancelAnimationFrame(animationId);
+  };
+}, []);
+
   // Function to create interactive bubble circles
   const createSquigglyLines = () => {
     if (!svgContainerRef.current) return;
@@ -332,8 +579,8 @@ export default function Home() {
     // Define colors array to be reused for consistency
     const colors = ["#8c66ff", "#7b5ce0", "#6345c9", "#9d7eff", "#b08cff"];
     
-    // Total number of bubbles
-    const totalBubbles = 20;
+    // Total number of bubbles - increased from 20 to 35
+    const totalBubbles = 35;
     
     // Create bubbles with natural distribution
     for (let i = 0; i < totalBubbles; i++) {
@@ -341,14 +588,22 @@ export default function Home() {
       let cx, cy;
       
       // Use a more organic placement algorithm to avoid looking like hotspots
-      if (Math.random() < 0.6) {
-        // Create bubbles near edges with variance
+      if (Math.random() < 0.7) {
+        // Create bubbles near edges with variance (increased probability for edges)
         if (Math.random() < 0.5) {
           // Near vertical edges
           cx = Math.random() < 0.5 ? 
             Math.random() * window.innerWidth * 0.2 : // Left edge
             window.innerWidth * 0.8 + Math.random() * window.innerWidth * 0.2; // Right edge
           cy = Math.random() * window.innerHeight;
+          
+          // Avoid the center content area
+          if (cy > window.innerHeight * 0.25 && cy < window.innerHeight * 0.75) {
+            // Push further to the sides if in the middle vertical area
+            cx = Math.random() < 0.5 ? 
+              Math.random() * window.innerWidth * 0.15 : // Further left
+              window.innerWidth * 0.85 + Math.random() * window.innerWidth * 0.15; // Further right
+          }
         } else {
           // Near horizontal edges
           cx = Math.random() * window.innerWidth;
@@ -358,8 +613,34 @@ export default function Home() {
         }
       } else {
         // Some random bubbles throughout the page for natural feel
+        // But avoid the central content area
         cx = Math.random() * window.innerWidth;
         cy = Math.random() * window.innerHeight;
+        
+        // If the bubble falls in the central content area, move it to a corner
+        if (cx > window.innerWidth * 0.2 && cx < window.innerWidth * 0.8 &&
+            cy > window.innerHeight * 0.2 && cy < window.innerHeight * 0.8) {
+          // Move to one of the corners
+          const corner = Math.floor(Math.random() * 4);
+          switch (corner) {
+            case 0: // Top-left
+              cx = Math.random() * window.innerWidth * 0.2;
+              cy = Math.random() * window.innerHeight * 0.2;
+              break;
+            case 1: // Top-right
+              cx = window.innerWidth * 0.8 + Math.random() * window.innerWidth * 0.2;
+              cy = Math.random() * window.innerHeight * 0.2;
+              break;
+            case 2: // Bottom-left
+              cx = Math.random() * window.innerWidth * 0.2;
+              cy = window.innerHeight * 0.8 + Math.random() * window.innerHeight * 0.2;
+              break;
+            case 3: // Bottom-right
+              cx = window.innerWidth * 0.8 + Math.random() * window.innerWidth * 0.2;
+              cy = window.innerHeight * 0.8 + Math.random() * window.innerHeight * 0.2;
+              break;
+          }
+        }
       }
       
       // Add some artistic clustering - very subtle
@@ -460,12 +741,70 @@ export default function Home() {
     });
   };
 
+  // Apply marker underline to the text
+  useEffect(() => {
+    if (instantlyFreeRef.current) {
+      // Create a canvas element for the marker underlining
+      const textElement = instantlyFreeRef.current;
+      const textRect = textElement.getBoundingClientRect();
+      
+      // Create a temporary SVG element for the underline
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", textRect.width.toString());
+      svg.setAttribute("height", "12"); // Height for the underline
+      svg.style.position = "absolute";
+      svg.style.left = "0";
+      svg.style.bottom = "-5px"; // Position slightly below text
+      svg.style.zIndex = "0";
+      svg.style.pointerEvents = "none"; // Don't interfere with clicks
+      
+      // Create a path for the marker effect
+      const path = document.createElementNS(svgNS, "path");
+      
+      // Create a straight horizontal line
+      const pathD = `M 0,6 L ${textRect.width},6`;
+      
+      path.setAttribute("d", pathD);
+      path.setAttribute("stroke", "#8c66ff");
+      path.setAttribute("stroke-width", "6");
+      path.setAttribute("stroke-linecap", "square"); // Square ends for a clean look
+      path.setAttribute("opacity", "0.8"); // Slightly more translucent for natural feel
+      path.setAttribute("fill", "none");
+      
+      svg.appendChild(path);
+      instantlyFreeRef.current.appendChild(svg);
+      
+      // Animate the underline drawing
+      const pathLength = path.getTotalLength();
+      path.style.strokeDasharray = pathLength.toString();
+      path.style.strokeDashoffset = pathLength.toString();
+      
+      gsap.to(path, {
+        strokeDashoffset: 0,
+        duration: 0.7, // Slightly slower for a more hand-drawn feel
+        ease: "power2.out", // More natural easing
+        delay: 0.2
+      });
+    }
+  }, []);
+
   return (
     <div className="bg-gray-100 text-black min-h-screen relative overflow-hidden" ref={containerRef}>
       {/* Container for SVG squiggly lines */}
       <div className="absolute inset-0 w-full h-full" ref={svgContainerRef}></div>
       
-      <div className="max-w-7xl mx-auto px-6 py-16 flex flex-col lg:flex-row items-start relative z-10">
+      {/* Loading overlay */}
+      {uploading && (
+        <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg flex flex-col items-center">
+            <div className="w-12 h-12 border-4 border-[#8c66ff] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-lg font-medium"></p>
+          </div>
+        </div>
+      )}
+      
+      <div className="max-w-7xl mx-auto px-6 py-16 flex flex-col mt-12 lg:flex-row items-start relative z-10">
         {/* Left side - Text content */}
         <div className="w-full lg:w-1/2 mb-12 lg:mb-0 lg:pr-12" ref={leftSideRef}>
           {/* Video from first code that auto-restarts after 5 seconds */}
@@ -482,13 +821,32 @@ export default function Home() {
               playsInline
             />
           </div>
-          <h1 className="text-5xl lg:text-7xl font-md mb-6 mt-10 text-center overflow-hidden" ref={titleRef}>
-            Fix Your Style With <b className='text-[#8c66ff]'>AI</b>
+          {/* Hidden title container that will be populated by the GSAP effect */}
+          <h1 
+            className="text-4xl lg:text-6xl font-md mb-10 mt-10 text-center" 
+            ref={titleRef}
+            style={{ 
+              visibility: "hidden", // Hide the entire element initially 
+              height: "6rem", // Increased height for the container
+              position: "relative",
+              width: "140%", // Further increased width
+              maxWidth: "1000px", // Significantly increased max width
+              margin: "0 auto 2rem auto", // Center it and add bottom margin
+              padding: "2.5rem 3rem 0 1rem", // Increased right padding
+              left: "-15%", // Adjusted offset to keep it centered
+              transform: "translateX(5%)" // Fine-tune the centering
+            }} 
+          >
+            <noscript>Fix Your Style With AI</noscript>
           </h1>
-          <div className="flex mb-8">
+          <div className="flex justify-center mb-8 mt-6">
             <h2 className="text-2xl font-bold">
               Personalized Outfit Ideas,{' '}
-              <span className="bg-[#8c66ff] text-white px-3 py-1 rounded-md ml-1">
+              <span 
+                className="px-3 py-1 rounded-md ml-1 relative" 
+                ref={instantlyFreeRef}
+                style={{ position: 'relative' }}
+              >
                 Instantly & Free
               </span>
             </h2>
@@ -496,9 +854,9 @@ export default function Home() {
         </div>
 
         {/* Right side - Upload area and Sample Outfits */}
-        <div className="w-full lg:w-1/2 space-y-6 mt-16 lg:mt-35 ml-10">
+        <div className="w-full lg:w-1/2 space-y-6 ml-20">
           <div 
-            className="bg-white p-8 rounded-4xl transition-all duration-300 w-full max-w-xl mx-auto h-115 shadow-lg
+            className="bg-white p-8  rounded-4xl transition-all duration-300 w-full max-w-xl mx-auto h-115 shadow-lg
                        hover:shadow-[0_0_25px_5px_rgba(140,102,255,0.3)] hover:scale-[1.02]
                        border border-gray-200 hover:border-[#8c66ff]"
             onDragOver={handleDragOver}
@@ -509,9 +867,13 @@ export default function Home() {
             <div className="flex flex-col items-center justify-center h-full text-center py-12 pb-5">
               <button
                 onClick={handleUploadClick}
-                className="cursor-pointer bg-[#8c66ff] text-white text-3xl font-semibold py-4 px-10 rounded-full mb-8 
+                className="cursor-pointer text-white text-3xl font-semibold py-4 px-10 rounded-full mb-8 
                            hover:bg-[#7b5cf0] transition-colors transform hover:scale-105"
                 ref={uploadButtonRef}
+                style={{
+                  background: "linear-gradient(45deg, #8c66ff, #6345c9)",
+                  boxShadow: "0 4px 15px rgba(140, 102, 255, 0.3)"
+                }}
               >
                 Upload Photo
               </button>
@@ -563,17 +925,24 @@ export default function Home() {
               </div>
               <div className="md:w-4/4">
                 <div className="grid grid-cols-4 gap-4">
-                  {[1, 2, 3, 4].map((num) => (
-                    <div key={num} className="cursor-pointer hover:opacity-80 transition-opacity">
-                      <Image 
-                        src={`/images/test_pic${num}.png`}
-                        alt="Sample outfit" 
-                        width={100} 
-                        height={100} 
-                        className="rounded-xl object-cover w-20 h-20"
-                      />
+                    {[1, 2, 3, 4].map((num) => (
+                  <div 
+                    key={num} 
+                    className="cursor-pointer transition-opacity relative group"
+                    onClick={() => handleSampleImageClick(num)}
+                  >
+                    <Image 
+                      src={`/images/test_pic${num}.png`}
+                      alt={`Sample outfit ${num}`}
+                      width={100} 
+                      height={100} 
+                      className="rounded-xl object-cover w-20 h-20 border-2 border-[#8c66ff] shadow-md hover:shadow-[0_0_10px_rgba(140,102,255,0.5)] transition-shadow duration-300"
+                    />
+                    <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-20 rounded-xl transition-all duration-200 flex items-center justify-center">
+                      <span className="text-white opacity-0 group-hover:opacity-100 font-bold text-xs">Use this</span>
                     </div>
-                  ))}
+                  </div>
+                ))}
                 </div>
               </div>
             </div>
