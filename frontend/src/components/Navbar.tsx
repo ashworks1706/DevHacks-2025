@@ -30,7 +30,7 @@ const Navbar: React.FC = () => {
               <Link href="/" className="flex items-center">
                 <Image
                   src="/images/logo.png"
-                  alt="FashionAI Logo"
+                  alt="Lux Logo"
                   width={80}
                   height={80}
                   className="mr-2"

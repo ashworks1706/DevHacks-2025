@@ -18,7 +18,7 @@ export default function FooterWrapper() {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between">
           <div className="mb-6 md:mb-0">
-            <h3 className="text-black text-lg font-semibold mb-2">FashionAI</h3>
+            <h3 className="text-black text-lg font-semibold mb-2">Lux</h3>
             <p className="text-sm">
               AI-powered wardrobe assistant for personalized style recommendations
             </p>
@@ -102,7 +102,7 @@ export default function FooterWrapper() {
           </div>
         </div>
         <div className="mt-8 pt-8 border-t border-gray-300 text-sm">
-          <p>&copy; {new Date().getFullYear()} FashionAI. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Lux. All rights reserved.</p>
         </div>
       </div>
     </footer>

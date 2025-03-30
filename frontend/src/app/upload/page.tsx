@@ -3,7 +3,7 @@ import UploadComponent from '../../components/UploadComponent';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Upload Photo - FashionAI',
+  title: 'Upload Photo - Lux',
   description: 'Upload your photo for AI-powered outfit recommendations',
 };
 

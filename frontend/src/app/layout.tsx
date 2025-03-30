@@ -10,24 +10,24 @@ import PreferencesWrapper from "../components/OnboardingWrapper";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "FashionAI | Your Smart Wardrobe Assistant",
+  title: "Lux | Your Smart Wardrobe Assistant",
   description:
     "Discover outfit recommendations powered by AI. Upload images of your wardrobe to get personalized outfit ideas based on your style and the latest trends.",
   keywords:
     "fashion, AI, smart wardrobe, outfit recommendations, style trends, hackathon, wardrobe assistant",
-  authors: [{ name: "FashionAI" }],
+  authors: [{ name: "Lux" }],
   openGraph: {
-    title: "FashionAI | Your Smart Wardrobe Assistant",
+    title: "Lux | Your Smart Wardrobe Assistant",
     description:
       "Discover outfit recommendations powered by AI. Upload images of your wardrobe to get personalized outfit ideas based on your style and the latest trends.",
-    url: "https://fashionai.com",
-    siteName: "FashionAI",
+    url: "https://lux.com",
+    siteName: "Lux",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "FashionAI - Your Smart Wardrobe Assistant",
+        alt: "Lux - Your Smart Wardrobe Assistant",
       },
     ],
     locale: "en_US",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "FashionAI | Your Smart Wardrobe Assistant",
+    title: "Lux | Your Smart Wardrobe Assistant",
     description:
       "Discover outfit recommendations powered by AI. Upload images of your wardrobe to get personalized outfit ideas based on your style and the latest trends.",
     images: ["/twitter-image.jpg"],

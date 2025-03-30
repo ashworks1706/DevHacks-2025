@@ -280,7 +280,7 @@ const UploadComponent = () => {
             <div className="mt-4 text-xs text-gray-500 text-center">
               By uploading a photo or URL you agree to our{' '}
               <Link href="/terms" className="text-[#8c66ff] underline">Terms of Service</Link>.
-              To learn more about how FashionAI handles your personal data, check our{' '}
+              To learn more about how Lux handles your personal data, check our{' '}
               <Link href="/privacy" className="text-[#8c66ff] underline">Privacy Policy</Link>.
             </div>
           </div>
