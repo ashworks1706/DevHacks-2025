@@ -542,7 +542,7 @@ export default function Home() {
         </div>
       )}
       
-      <div className="max-w-7xl mx-auto px-6 py-16 flex flex-col lg:flex-row items-start relative z-10">
+      <div className="max-w-7xl mx-auto px-6 py-16 flex flex-col mt-12 lg:flex-row items-start relative z-10">
         {/* Left side - Text content */}
         <div className="w-full lg:w-1/2 mb-12 lg:mb-0 lg:pr-12" ref={leftSideRef}>
           {/* Video from first code that auto-restarts after 5 seconds */}
@@ -573,7 +573,7 @@ export default function Home() {
         </div>
 
         {/* Right side - Upload area and Sample Outfits */}
-        <div className="w-full lg:w-1/2 space-y-6 mt-16 lg:mt-35 ml-10">
+        <div className="w-full lg:w-1/2 space-y-6  ml-10">
           <div 
             className="bg-white p-8 rounded-4xl transition-all duration-300 w-full max-w-xl mx-auto h-115 shadow-lg
                        hover:shadow-[0_0_25px_5px_rgba(140,102,255,0.3)] hover:scale-[1.02]
