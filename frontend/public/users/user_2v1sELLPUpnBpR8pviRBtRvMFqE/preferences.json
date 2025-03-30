@@ -1,0 +1,46 @@
+{
+  "user_id": "user_2v1sELLPUpnBpR8pviRBtRvMFqE",
+  "name": "JOHN",
+  "age": 19,
+  "gender": "male",
+  "location": "TEMPE",
+  "onboarding_responses": {
+    "favorite_colors": [
+      "navy",
+      "yellow"
+    ],
+    "dominant_colors": [
+      "blue",
+      "yellow"
+    ],
+    "preferred_materials": [
+      "cotton",
+      "linen"
+    ],
+    "preferred_patterns": [
+      "floral",
+      "polkadot"
+    ],
+    "style_preferences": [
+      "streetwear",
+      "vintage"
+    ],
+    "fashion_influences": [],
+    "wardrobe_challenges": "",
+    "budget": "mixed",
+    "lifestyle": {
+      "work": "",
+      "social": "relaxed",
+      "climate": "temperate"
+    }
+  },
+  "style_profile": {
+    "casual": 20,
+    "formal": 10,
+    "active": 10,
+    "pattern_variability": "low",
+    "material_variety": "medium"
+  },
+  "email": "asriv132@asu.edu",
+  "updated_at": "2025-03-30T22:06:51.041Z"
+}
