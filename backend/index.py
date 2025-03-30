@@ -13,6 +13,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import time
 import json
+from PIL import Image, ImageDraw, ImageFont
 
 app = Flask(__name__)
 CORS(app)
@@ -27,11 +28,124 @@ conversation_complete = False
 client = genai.Client(
     api_key=os.environ.get("GEMINI_API_KEY","AIzaSyCnbeks5tL1s_PwBKyYRqT83Wlh0tTTITI"),
 )
+
 def load_user_info(file_path):
     with open(file_path, 'r') as f:
         user_info = json.load(f)
     return user_info
+def modify_image_with_replacement(image_path):
+    """
+    Analyze an image using the Gemini API, detect objects, and update the image with bounding boxes and labels.
+    This function replaces the original image with the modified one.
+    
+    Args:
+        image_path (str): Path to the image file to analyze
+    
+    Returns:
+        str: Path to the modified image with bounding boxes (same as input path)
+    """
+    try:
+        # Load the image
+        with Image.open(image_path) as img:
+            # Make a copy of the original image
+            original_img = img.copy()
+            # Resize image if needed for better processing
+            img.thumbnail([1024, 1024], Image.Resampling.LANCZOS if hasattr(Image, 'Resampling') else Image.LANCZOS)
+            
+            # Prepare prompt for object detection
+            prompt = "Detect the 2D bounding boxes of all visible objects in this image with descriptive labels."
+            
+            # System instructions for bounding box format
+            bounding_box_instructions = """
+            Return bounding boxes as a JSON array with labels. Never return masks or code fencing. 
+            Limit to 25 objects. If an object is present multiple times, name them according to 
+            their unique characteristic (colors, size, position, unique characteristics, etc.).
+            """
+            
+            # Upload image to Gemini API
+            uploaded_file = client.files.upload(file=image_path)
+            
+            # Generate content with the model
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[prompt, uploaded_file],
+                config=types.GenerateContentConfig(
+                    system_instruction=bounding_box_instructions,
+                    temperature=0.5,
+                )
+            )
+            
+            # Parse the JSON response
+            bounding_boxes = parse_json_response(response.text)
+            
+            # Draw bounding boxes on the image
+            draw = ImageDraw.Draw(original_img)
+            
+            # Define colors for different objects
+            colors = ['red', 'green', 'blue', 'yellow', 'orange', 'pink', 'purple', 'brown', 
+                        'gray', 'cyan', 'magenta', 'lime', 'navy', 'teal', 'olive']
+            
+            width, height = original_img.size
+            
+            # Try to get a font that works across systems
+            try:
+                font = ImageFont.truetype("Arial.ttf", 14)
+            except IOError:
+                # Fallback to default font
+                font = ImageFont.load_default()
+            
+            # Draw each bounding box
+            boxes_data = json.loads(bounding_boxes)
+            for i, box in enumerate(boxes_data):
+                color = colors[i % len(colors)]
+                
+                # Extract coordinates (normalized to 0-1000 range)
+                y1 = int(box["box_2d"][0] / 1000 * height)
+                x1 = int(box["box_2d"][1] / 1000 * width)
+                y2 = int(box["box_2d"][2] / 1000 * height)
+                x2 = int(box["box_2d"][3] / 1000 * width)
+                
+                # Ensure coordinates are in correct order
+                if x1 > x2:
+                    x1, x2 = x2, x1
+                if y1 > y2:
+                    y1, y2 = y2, y1
+                
+                # Draw rectangle
+                draw.rectangle([(x1, y1), (x2, y2)], outline=color, width=3)
+                
+                # Add label
+                if "label" in box:
+                    draw.text((x1 + 5, y1 + 5), box["label"], fill=color, font=font)
+            
+            # Save back to the original path, replacing the original image
+            original_img.save(image_path)
+            
+            return image_path
+            
+    except Exception as e:
+        print(f"Error in modify_image_with_replacement: {str(e)}")
+        return None
 
+def parse_json_response(json_output):
+    """
+    Parse JSON output from Gemini API, handling potential markdown fencing
+    
+    Args:
+        json_output (str): JSON response from Gemini API
+        
+    Returns:
+        str: Cleaned JSON string
+    """
+    # Remove markdown fencing if present
+    lines = json_output.splitlines()
+    for i, line in enumerate(lines):
+        if line.strip() == "```json" or line.strip() == "```":
+            json_output = "\n".join(lines[i+1:])  # Remove everything before "```json"
+            json_output = json_output.split("```")[0]  # Remove everything after the closing "```"
+            break
+    
+    return json_output
 
 # Load chat history from file
 def load_chat_history(file_path):
@@ -465,9 +579,7 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
     append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", grounding_sources)
     task_running = False    
     return responses
-        
-        
-        
+             
 def run_agent_in_background(query, image_path, audio_path,user_id):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -494,13 +606,15 @@ def start_message():
     image_path = f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/temp_image.jpeg"
     audio_path = f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/temp_audio.mp3"
     responses = []  # Clear previous responses
-    print(image_path, audio_path)
     task_running = True
     task_error = None
     conversation_complete = False
     
+    modify_image_with_replacement(image_path)
+    
     threading.Thread(target=run_agent_in_background, args=(query, image_path, audio_path,user_id)).start()
     return jsonify({'message': 'Task started in the background. Check /getstatus for updates.'}), 200
+
 if __name__ == "__main__":
     try:
         CORS(app)  # Enable CORS for all routes
