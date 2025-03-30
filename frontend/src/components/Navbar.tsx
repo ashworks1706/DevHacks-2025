@@ -30,7 +30,7 @@ const Navbar: React.FC = () => {
               <Link href="/" className="flex items-center">
                 <Image
                   src="/images/logo.png"
-                  alt="FashionAI Logo"
+                  alt="Lux Logo"
                   width={80}
                   height={80}
                   className="mr-2"
@@ -45,31 +45,31 @@ const Navbar: React.FC = () => {
             <div className="hidden md:flex md:items-center md:space-x-8 ml-8">
               <Link
                 href="/"
-                className="px-3 py-2 text-xl rounded-full hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+                className="px-3 py-2 text-xl relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               >
                 Home
               </Link>
               <Link
                 href="/upload"
-                className="px-3 py-2 text-xl rounded-full hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+                className="px-3 py-2 text-xl relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               >
                 Upload Photo
               </Link>
               <Link
                 href="/features"
-                className="px-3 py-2 text-xl rounded-full hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+                className="px-3 py-2 text-xl relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               >
                 Features
               </Link>
               <Link
                 href="/outfits"
-                className="px-3 py-2 text-xl rounded-full hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+                className="px-3 py-2 text-xl relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               >
                 Outfits
               </Link>
               <Link
                 href="/about"
-                className="px-3 py-2 text-xl rounded-full hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+                className="px-3 py-2 text-xl relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               >
                 About
               </Link>
@@ -80,12 +80,12 @@ const Navbar: React.FC = () => {
           <div className="hidden md:flex md:items-center md:space-x-4 ml-auto">
             <SignedOut>
               <SignInButton>
-                <button className="px-5 py-2 text-xl rounded-full hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors">
+                <button className="px-5 py-2 text-xl rounded-full   text-black hover:bg-[#8c66ff] hover:text-white transition-colors">
                   Log in
                 </button>
               </SignInButton>
               <SignUpButton>
-                <button className="px-5 py-2 text-xl rounded-full bg-[#8c66ff] text-white hover:bg-[#7b5cf0] transition-colors">
+                <button className="px-5 py-2 text-xl rounded-full bg-[#8c66ff] text-white hover:bg-[#8c66ffca] transition-colors">
                   Sign up
                 </button>
               </SignUpButton>
@@ -119,35 +119,35 @@ const Navbar: React.FC = () => {
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-100">
             <Link
               href="/"
-              className="block px-3 py-2 text-lg rounded-md hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+              className="block px-3 py-2 text-lg relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               onClick={toggleMenu}
             >
               Home
             </Link>
             <Link
               href="/upload"
-              className="block px-3 py-2 text-lg rounded-md hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+              className="block px-3 py-2 text-lg relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               onClick={toggleMenu}
             >
               Upload Photo
             </Link>
             <Link
               href="/features"
-              className="block px-3 py-2 text-lg rounded-md hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+              className="block px-3 py-2 text-lg relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               onClick={toggleMenu}
             >
               Features
             </Link>
             <Link
               href="/outfits"
-              className="block px-3 py-2 text-lg rounded-md hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+              className="block px-3 py-2 text-lg relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               onClick={toggleMenu}
             >
               Outfits
             </Link>
             <Link
               href="/about"
-              className="block px-3 py-2 text-lg rounded-md hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors"
+              className="block px-3 py-2 text-lg relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-0 after:bg-[#8c66ff] after:transition-all hover:after:w-full"
               onClick={toggleMenu}
             >
               About
@@ -156,7 +156,7 @@ const Navbar: React.FC = () => {
               <SignedOut>
                 <SignInButton>
                   <button 
-                    className="block px-3 py-2 text-lg rounded-full hover:bg-[#8c66ff] hover:bg-opacity-20 transition-colors text-center"
+                    className="block px-3 py-2 text-lg rounded-full border border-[#8c66ff] text-[#8c66ff] hover:bg-[#8c66ff] hover:text-white transition-colors text-center"
                     onClick={toggleMenu}
                   >
                     Log in

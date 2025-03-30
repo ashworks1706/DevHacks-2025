@@ -102,7 +102,7 @@ const ImageEditComponent = () => {
     if (imageUrl) {
       const link = document.createElement('a');
       link.href = imageUrl;
-      link.download = 'fashionai_image.jpg';
+      link.download = 'lux_image.jpg';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
