@@ -1,0 +1,41 @@
+{
+  "user_id": "user_2v0oacHLT9h81KQQCaRv8kcTcXf",
+  "name": "George Badulescu",
+  "age": 12,
+  "gender": "male",
+  "location": "Chandler,AZ",
+  "onboarding_responses": {
+    "favorite_colors": [
+      "navy"
+    ],
+    "dominant_colors": [
+      "white"
+    ],
+    "preferred_materials": [
+      "leather"
+    ],
+    "preferred_patterns": [
+      "polkadot"
+    ],
+    "style_preferences": [
+      "casual"
+    ],
+    "fashion_influences": [
+      "Asthon Hall"
+    ],
+    "wardrobe_challenges": "Variety",
+    "budget": "budget",
+    "lifestyle": {
+      "work": "creative",
+      "social": "relaxed",
+      "climate": "warm"
+    }
+  },
+  "style_profile": {
+    "casual": 80,
+    "formal": 10,
+    "active": 10,
+    "pattern_variability": "low",
+    "material_variety": "medium"
+  }
+}
