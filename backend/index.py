@@ -311,7 +311,7 @@ Your tone should be friendly yet professional, knowledgeable but approachable. A
                 config=GenerateContentConfig(
                 tools=[Tool(google_search=GoogleSearch())],
                 response_modalities=["TEXT"],
-        maxOutputTokens=500,
+        maxOutputTokens=400,
                 
                 system_instruction="""You are a specialized Environment Intelligence Agent with expertise in extracting fashion-relevant contextual information. Your mission is to provide precise, actionable data about:
 
@@ -436,6 +436,8 @@ Your tone should be friendly yet professional, knowledgeable but approachable. A
                 contents=prompt,
                 config=GenerateContentConfig(
                 tools=[],
+                maxOutputTokens=400,
+
                 
                 response_modalities=["TEXT"],
                 system_instruction="""You are an expert Wardrobe Analyst with training in fashion merchandising, color theory, and garment construction. Your task is to conduct a comprehensive analysis of the user's closet image with professional precision.
@@ -534,6 +536,8 @@ Present your analysis in a structured format with visual cues detected from the 
     Your outputs should be visual-first, focusing on the specific elements in the Pinterest images that make them suitable for the user. Avoid generic fashion advice and prioritize personalized, actionable recommendations that utilize their existing wardrobe while identifying thoughtful additions.
     """,
         temperature=0.4,
+                maxOutputTokens=400,
+
         response_mime_type="text/plain",
         )
         
