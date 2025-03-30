@@ -180,7 +180,7 @@ def append_to_json(file_path, data):
         with open(file_path, 'w') as f:
             json.dump([data], f, indent=4)
 
-async def create_superior_agent(query, image_path, audio_path,user_id):
+async def create_superior_agent(query, image_path,user_id):
     global files, responses, task_running, task_error, client,grounding_sources, chat_history, conversation_complete
     model = "gemini-2.0-flash"
     chat_history = load_chat_history(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json")
@@ -602,7 +602,6 @@ Your outputs should be visual-first, focusing on the specific elements in the Pi
         try:
             files = [
                 client.files.upload(file=image_path),
-                client.files.upload(file=audio_path),
             ]
         except Exception as file_error:
             raise Exception(f"Failed to upload files: {str(file_error)}")
@@ -707,11 +706,11 @@ Your outputs should be visual-first, focusing on the specific elements in the Pi
     task_running = False    
     return responses
              
-def run_agent_in_background(query, image_path, audio_path,user_id):
+def run_agent_in_background(query, image_path,user_id):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(create_superior_agent(query, image_path, audio_path,user_id))
+        loop.run_until_complete(create_superior_agent(query, image_path,user_id))
     except Exception as e:
         global task_error
         task_error = str(e)
@@ -731,7 +730,6 @@ def start_message():
     global user_id
     user_id = request.json['userid']
     image_path = f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/temp_image.jpeg"
-    audio_path = f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/temp_audio.mp3"
     responses = []  # Clear previous responses
     task_running = True
     task_error = None
@@ -739,7 +737,7 @@ def start_message():
     
     modify_image_with_replacement(image_path)
     
-    threading.Thread(target=run_agent_in_background, args=(query, image_path, audio_path,user_id)).start()
+    threading.Thread(target=run_agent_in_background, args=(query, image_path,user_id)).start()
     return jsonify({'message': 'Task started in the background. Check /getstatus for updates.'}), 200
 
 if __name__ == "__main__":
