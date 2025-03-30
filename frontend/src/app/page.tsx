@@ -534,10 +534,10 @@ export default function Home() {
       
       {/* Loading overlay */}
       {uploading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-lg flex flex-col items-center">
             <div className="w-12 h-12 border-4 border-[#8c66ff] border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-lg font-medium">Processing your image...</p>
+            <p className="text-lg font-medium"></p>
           </div>
         </div>
       )}
