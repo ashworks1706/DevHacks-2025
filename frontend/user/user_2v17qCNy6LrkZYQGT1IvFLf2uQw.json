@@ -1,0 +1,49 @@
+{
+  "user_id": "user_2v17qCNy6LrkZYQGT1IvFLf2uQw",
+  "name": "George",
+  "age": 11,
+  "gender": "male",
+  "location": "Chandler,AZ",
+  "onboarding_responses": {
+    "favorite_colors": [
+      "black",
+      "white"
+    ],
+    "dominant_colors": [
+      "blue",
+      "green",
+      "brown",
+      "purple"
+    ],
+    "preferred_materials": [
+      "wool",
+      "knits"
+    ],
+    "preferred_patterns": [
+      "polkadot",
+      "floral"
+    ],
+    "style_preferences": [
+      "casual",
+      "streetwear",
+      "minimalist"
+    ],
+    "fashion_influences": [
+      "Asthon Hall"
+    ],
+    "wardrobe_challenges": "Very messy",
+    "budget": "budget",
+    "lifestyle": {
+      "work": "corporate",
+      "social": "",
+      "climate": "warm"
+    }
+  },
+  "style_profile": {
+    "casual": 80,
+    "formal": 10,
+    "active": 10,
+    "pattern_variability": "low",
+    "material_variety": "medium"
+  }
+}

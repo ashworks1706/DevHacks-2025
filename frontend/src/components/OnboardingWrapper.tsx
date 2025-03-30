@@ -1,20 +1,26 @@
 'use client';
 
-import { ReactNode } from 'react';
-import OnboardingModal from './OnboardingModal';
-import { useOnboarding } from './OnboardingContext';
+import { useState, useEffect } from 'react';
+import { useOnboarding } from '@/components/OnboardingContext';
+import OnboardingModal from '@/components/OnboardingModal';
 
-interface PreferencesWrapperProps {
-  children: ReactNode;
-}
-
-export default function PreferencesWrapper({ children }: PreferencesWrapperProps) {
-  const { showPreferencesModal, closePreferencesModal } = useOnboarding();
-
+export default function OnboardingWrapper({ children }: { children: React.ReactNode }) {
+  const { showPreferencesModal, closePreferencesModal, setUserPreferences } = useOnboarding();
+  
+  const handleCompleteOnboarding = (preferences: any) => {
+    setUserPreferences(preferences);
+    closePreferencesModal();
+  };
+  
   return (
     <>
       {children}
-      <OnboardingModal isOpen={showPreferencesModal} onClose={closePreferencesModal} />
+      
+      <OnboardingModal 
+        isOpen={showPreferencesModal} 
+        onClose={closePreferencesModal}
+        onComplete={handleCompleteOnboarding}
+      />
     </>
   );
 }
