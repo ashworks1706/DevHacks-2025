@@ -3,6 +3,45 @@ import Image from 'next/image';
 import { FiUpload, FiStar, FiCalendar, FiGrid } from 'react-icons/fi';
 
 export default function Outfits() {
+  const occasions = [
+    {
+      name: "Casual Day Out",
+      description: "Perfect for running errands or meeting friends",
+      category: "Casual",
+      image: "/images/features-showcase.png"
+    },
+    {
+      name: "Halloween Night",
+      description: "Spooky and stylish costume ideas",
+      category: "Festive",
+      image: "/images/outfit-2.png"
+    },
+    {
+      name: "Christmas Gathering",
+      description: "Festive looks for holiday parties",
+      category: "Holiday",
+      image: "/images/outfit-3.png"
+    },
+    {
+      name: "Thanksgiving Dinner",
+      description: "Comfortable yet put-together family looks",
+      category: "Family",
+      image: "/images/outfit-4.png"
+    },
+    {
+      name: "New Years Party",
+      description: "Glamorous outfits to ring in the new year",
+      category: "Celebration",
+      image: "/images/outfit-5.png"
+    },
+    {
+      name: "Party Night Out",
+      description: "Trendy looks for a night on the town",
+      category: "Nightlife",
+      image: "/images/outfit-6.png"
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
@@ -18,24 +57,28 @@ export default function Outfits() {
 
         {/* Outfit Gallery */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          {[1, 2, 3, 4, 5, 6].map((item) => (
-            <div key={item} className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+          {occasions.map((occasion, index) => (
+            <div 
+              key={index} 
+              className="bg-white rounded-2xl overflow-hidden shadow-lg transition-all duration-300
+                         hover:scale-105 hover:shadow-[0_0_20px_5px_rgba(140,102,255,0.3)]
+                         border border-transparent hover:border-[#8c66ff]"
+            >
               <Image
-                src={`/images/outfit-${item}.jpg`}
-                alt={`Outfit combination ${item}`}
+                src={occasion.image}
+                alt={occasion.name}
                 width={600}
                 height={400}
                 className="w-full h-64 object-cover"
               />
               <div className="p-6">
                 <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-medium text-gray-800">Casual Day Out</h3>
-                  <span className="bg-[#8c66ff]/10 text-[#8c66ff] px-3 py-1 rounded-full text-sm">Work</span>
+                  <h3 className="text-lg font-medium text-gray-800">{occasion.name}</h3>
+                  <span className="bg-[#8c66ff]/10 text-[#8c66ff] px-3 py-1 rounded-full text-sm">
+                    {occasion.category}
+                  </span>
                 </div>
-                <p className="text-gray-600 mb-4">Perfect for office meetings or coffee dates</p>
-                <button className="w-full py-2 rounded-full border border-[#8c66ff] text-[#8c66ff] hover:bg-[#8c66ff] hover:text-white transition-colors">
-                  Save Outfit
-                </button>
+                <p className="text-gray-600">{occasion.description}</p>
               </div>
             </div>
           ))}
