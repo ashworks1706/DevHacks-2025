@@ -9,6 +9,7 @@ import {
 
 interface ChatComponentProps {
   systemStatus: 'idle' | 'processing' | 'completed' | 'error';
+  statusMessages: {status: string; message: string; time: string}[];
 }
 
 interface ChatMessage {
@@ -17,7 +18,7 @@ interface ChatMessage {
   isLoading?: boolean;
 }
 
-const ChatComponent = ({ systemStatus }: ChatComponentProps) => {
+const ChatComponent = ({ systemStatus, statusMessages }: ChatComponentProps) => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: 'ai', content: 'Hello! I\'m your FashionAI assistant. I can analyze your outfit and provide recommendations. What would you like to know?' }
   ]);
@@ -72,6 +73,19 @@ const ChatComponent = ({ systemStatus }: ChatComponentProps) => {
     }, 2000);
   };
 
+  const getStatusIcon = (status: string) => {
+    switch(status) {
+      case 'completed':
+        return <FiCheck className="text-green-500" />;
+      case 'processing':
+        return <div className="animate-spin"><FiLoader className="text-[#8c66ff]" /></div>;
+      case 'error':
+        return <div className="text-red-500">×</div>;
+      default:
+        return <FiClock className="text-gray-500" />;
+    }
+  };
+
   // ChatGPT-style typing indicator with bouncing dots
   const TypingIndicator = () => (
     <div className="flex justify-start">
@@ -90,7 +104,7 @@ const ChatComponent = ({ systemStatus }: ChatComponentProps) => {
       {/* Status bar */}
       <div className="border-b border-gray-200 py-3 px-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Lux Assistant</h2>
+          <h2 className="text-lg font-bold">FashionAI Assistant</h2>
           <div className="flex items-center space-x-2">
             <span className={`inline-block h-2 w-2 rounded-full ${
               systemStatus === 'idle' ? 'bg-gray-400' :
@@ -110,7 +124,7 @@ const ChatComponent = ({ systemStatus }: ChatComponentProps) => {
       <div 
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-3"
-        style={{ maxHeight: 'calc(100vh - 240px)' }}
+        style={{ maxHeight: 'calc(100vh - 280px)' }}
       >
         {chatMessages.map((message, index) => (
           <div 
@@ -132,6 +146,24 @@ const ChatComponent = ({ systemStatus }: ChatComponentProps) => {
         {/* Show typing indicator when AI is responding */}
         {isAiTyping && <TypingIndicator />}
       </div>
+      
+      {/* System status log */}
+      {statusMessages.length > 0 && (
+        <div className="border-t border-gray-200 py-2 px-4 bg-gray-50">
+          <h3 className="text-xs font-semibold text-gray-500 mb-1">System Status</h3>
+          <div className="space-y-1 max-h-[80px] overflow-y-auto">
+            {statusMessages.slice(-3).map((status, index) => (
+              <div key={index} className="flex items-center text-xs">
+                <div className="mr-2">
+                  {getStatusIcon(status.status)}
+                </div>
+                <div className="flex-1">{status.message}</div>
+                <div className="text-xs text-gray-500">{status.time}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       
       {/* Chat input - Styled like Claude's UI */}
       <div className="border-t border-gray-200 p-4">
