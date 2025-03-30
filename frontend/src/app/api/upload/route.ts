@@ -22,10 +22,13 @@ export async function POST(request: NextRequest) {
 
     let folderPath: string;
     let relativePath: string;
+    let uniqueId = uuidv4();
+    let userFolderPath: string;
     
     if (userId) {
       // For authenticated users - store in their personal folder
       folderPath = path.join(process.cwd(), 'public', 'users', userId);
+      userFolderPath = folderPath;
       
       // Create user directory if it doesn't exist
       if (!fs.existsSync(folderPath)) {
@@ -34,26 +37,27 @@ export async function POST(request: NextRequest) {
       
       // Generate unique filename
       const fileExtension = file.name.split('.').pop();
-      const fileName = `${uuidv4()}.${fileExtension}`;
+      const fileName = `${uniqueId}.${fileExtension}`;
       
       // Create a relative path to use in the application
       relativePath = `/users/${userId}/${fileName}`;
     } else {
-      // For non-authenticated users - store in a temporary folder
-      folderPath = path.join(process.cwd(), 'public', 'temp');
+      // For non-authenticated users - also store in a user folder with guest ID
+      const guestId = uniqueId;
+      folderPath = path.join(process.cwd(), 'public', 'users', `guest-${guestId}`);
+      userFolderPath = folderPath;
       
-      // Create temp directory if it doesn't exist
+      // Create guest user directory if it doesn't exist
       if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath, { recursive: true });
       }
       
       // Generate unique filename
       const fileExtension = file.name.split('.').pop();
-      const tempId = uuidv4(); // Generate a temporary ID for the guest
-      const fileName = `${tempId}.${fileExtension}`;
+      const fileName = `${uniqueId}.${fileExtension}`;
       
       // Create a relative path to use in the application
-      relativePath = `/temp/${fileName}`;
+      relativePath = `/users/guest-${guestId}/${fileName}`;
     }
     
     const filePath = path.join(folderPath, path.basename(relativePath));
@@ -65,11 +69,33 @@ export async function POST(request: NextRequest) {
     // Write the file to disk
     fs.writeFileSync(filePath, buffer);
     
+    // Create JSON files for chat history
+    const sessionId = uniqueId;
+    
+    // Create replies.json file
+    const repliesData = {
+      sessionId: sessionId,
+      replies: []
+    };
+    const repliesFilePath = path.join(userFolderPath, `replies_${sessionId}.json`);
+    fs.writeFileSync(repliesFilePath, JSON.stringify(repliesData, null, 2));
+    
+    // Create responses.json file
+    const responsesData = {
+      sessionId: sessionId,
+      responses: []
+    };
+    const responsesFilePath = path.join(userFolderPath, `responses_${sessionId}.json`);
+    fs.writeFileSync(responsesFilePath, JSON.stringify(responsesData, null, 2));
+    
     return NextResponse.json(
       { 
         success: true,
         filePath: relativePath,
-        userId: userId || 'guest'
+        userId: userId || `guest-${uniqueId}`,
+        sessionId: sessionId,
+        repliesFile: `replies_${sessionId}.json`,
+        responsesFile: `responses_${sessionId}.json`
       },
       { status: 200 }
     );
