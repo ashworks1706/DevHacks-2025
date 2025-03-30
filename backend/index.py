@@ -249,13 +249,13 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
                     ),
                     types.FunctionDeclaration(
                         name="access_style_match_agent",
-                        description="Interprets the user’s desired aesthetic or vibe, compares it to online inspiration, and aligns it with the user's closet.",
+                        description="knows the user’s desired aesthetic or vibe, compares it to online inspiration, and aligns it with the user's closet.",
                         parameters={
                             "type": "object",
                             "properties": {
                                 "instruction_to_agent": {
                                     "type": "string",
-                                    "description": "User’s style request or references (e.g., 'casual boho vibe'), which the agent converts into structured style data."
+                                    "description": "Any special instructions."
                                 }
                             },
                             "required": ["instruction_to_agent"]
@@ -407,7 +407,7 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
         except Exception as e:
             return f"Error in Closet analysis agent: {str(e)}"
         
-    async def access_style_match_agent(instruction_to_agent):
+    async def access_style_match_agent(instruction_to_agent:str):
         append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", f"Calculating your fit check 💅")
         tools = [
         types.Tool(
@@ -480,7 +480,7 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
                 config=generate_content_config,
                 )
                 print("\nStyle Agent nested @ ",generation_result)
-                
+        print("generation_result.candidates[-1].content.parts[-1].text\n",generation_result.candidates[-1].content.parts[-1].text)
         return generation_result.candidates[-1].content.parts[-1].text
         
     async def handle_function_call(function_call):
@@ -501,14 +501,16 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
             else:
                 return f"Unknown function: {function_name}"
 
-    try:
-        files = [
-            client.files.upload(file=image_path),
-            client.files.upload(file=audio_path),
-        ]
-    except Exception as file_error:
-        raise Exception(f"Failed to upload files: {str(file_error)}")
-    print("hello")
+    if files is None:
+        try:
+            files = [
+                client.files.upload(file=image_path),
+                client.files.upload(file=audio_path),
+            ]
+        except Exception as file_error:
+            raise Exception(f"Failed to upload files: {str(file_error)}")
+    else:
+        print("Files already uploaded, skipping upload step")
     # Include chat history in the content
     contents=[]
     try:

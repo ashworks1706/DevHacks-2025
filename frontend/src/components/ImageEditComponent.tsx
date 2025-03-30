@@ -14,11 +14,6 @@ const ImageEditComponent = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [systemStatus, setSystemStatus] = useState<'idle' | 'processing' | 'completed' | 'error'>('idle');
-  const [statusMessages, setStatusMessages] = useState<{status: string; message: string; time: string}[]>([
-    {status: 'completed', message: 'Image loaded successfully', time: '10:30 AM'},
-    {status: 'completed', message: 'Analysis initialized', time: '10:30 AM'},
-  ]);
   
   // Image control states
   const [zoom, setZoom] = useState(1);
@@ -39,23 +34,7 @@ const ImageEditComponent = () => {
       setIsLoading(false);
       
       // Simulate status updates
-      setTimeout(() => {
-        setSystemStatus('processing');
-        setStatusMessages(prev => [...prev, {
-          status: 'processing', 
-          message: 'Analyzing image...', 
-          time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-        }]);
-      }, 1000);
       
-      setTimeout(() => {
-        setSystemStatus('completed');
-        setStatusMessages(prev => [...prev, {
-          status: 'completed', 
-          message: 'Image analysis complete', 
-          time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-        }]);
-      }, 3000);
     } else {
       // Redirect back to upload if no image is specified
       router.push('/upload');
@@ -76,21 +55,6 @@ const ImageEditComponent = () => {
       setZoom(1);
       setRotation(0);
       
-      // Simulate new status messages
-      setSystemStatus('processing');
-      setStatusMessages([
-        {status: 'completed', message: 'New image loaded', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})},
-        {status: 'processing', message: 'Analyzing new image...', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})},
-      ]);
-      
-      setTimeout(() => {
-        setSystemStatus('completed');
-        setStatusMessages(prev => [...prev, {
-          status: 'completed', 
-          message: 'New image analysis complete', 
-          time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-        }]);
-      }, 2000);
     }
   };
 
@@ -103,59 +67,35 @@ const ImageEditComponent = () => {
   const handleThumbsUp = () => {
     console.log("User rated this result positively");
     // You would implement your rating logic here
-    setStatusMessages(prev => [...prev, {
-      status: 'completed', 
-      message: 'Positive feedback recorded', 
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    }]);
+  
   };
 
   const handleThumbsDown = () => {
     console.log("User rated this result negatively");
     // You would implement your rating logic here
-    setStatusMessages(prev => [...prev, {
-      status: 'completed', 
-      message: 'Negative feedback recorded', 
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    }]);
+  
   };
 
   // Image control functions
   const handleZoomIn = () => {
     setZoom(prev => Math.min(prev + 0.1, 3));
-    setStatusMessages(prev => [...prev, {
-      status: 'completed', 
-      message: 'Zoomed in', 
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    }]);
+
   };
 
   const handleZoomOut = () => {
     setZoom(prev => Math.max(prev - 0.1, 1)); // Prevent zooming out past default level (1)
-    setStatusMessages(prev => [...prev, {
-      status: 'completed', 
-      message: 'Zoomed out', 
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    }]);
+    
   };
 
   const handleRotate = () => {
     setRotation(prev => (prev + 90) % 360);
-    setStatusMessages(prev => [...prev, {
-      status: 'completed', 
-      message: 'Image rotated', 
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    }]);
+   
   };
 
   const handleReset = () => {
     setZoom(1);
     setRotation(0);
-    setStatusMessages(prev => [...prev, {
-      status: 'completed', 
-      message: 'Image reset', 
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    }]);
+    
   };
 
   const handleDownload = () => {
@@ -167,11 +107,6 @@ const ImageEditComponent = () => {
       link.click();
       document.body.removeChild(link);
       
-      setStatusMessages(prev => [...prev, {
-        status: 'completed', 
-        message: 'Image downloaded', 
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-      }]);
     }
   };
 
@@ -196,7 +131,7 @@ const ImageEditComponent = () => {
                   <img
                     src={imageUrl}
                     alt="Uploaded image"
-                    className="w-full h-full object-cover transition-all duration-200 rounded-lg"
+                    className="w-full h-full object-contain transition-all duration-200 rounded-lg"
                     style={{ 
                       transform: `scale(${zoom}) rotate(${rotation}deg)`,
                     }}
@@ -309,8 +244,6 @@ const ImageEditComponent = () => {
           {/* Right side - Chat interface */}
           <div className="w-full md:w-2/5 p-4 h-210 overflow-hidden">
             <ChatComponent 
-              systemStatus={systemStatus}
-              statusMessages={statusMessages}
             />
           </div>
         </div>

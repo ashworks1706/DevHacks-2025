@@ -12,12 +12,12 @@ interface ChatMessage {
   role: 'user' | 'ai';
   content: string;
   isLoading?: boolean;
+  id?: string; // For tracking messages
 }
 
 const ChatComponent = () => {
   const { user } = useUser();
   const userId = user?.id;
-  console.log(userId)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -25,6 +25,7 @@ const ChatComponent = () => {
   const inputRef = useRef<HTMLDivElement>(null);
   const [systemStatus, setSystemStatus] = useState<'idle' | 'processing' | 'completed' | 'error'>('idle');
   const [statusMessages, setStatusMessages] = useState<any>([]);
+  const [lastMessageTimestamp, setLastMessageTimestamp] = useState<number>(0);
 
   useEffect(() => {
     console.log(userId)
@@ -35,11 +36,17 @@ const ChatComponent = () => {
         if (response.ok) {
           const data = await response.json();
           // Map the chat history to the ChatMessage interface
-          const mappedMessages = data.map((message: any) => ({
+          const mappedMessages = data.map((message: any, index: number) => ({
             role: message.user ? 'user' : 'ai',
             content: message.user || message.model,
+            id: `history-${index}`,
           }));
-          setChatMessages(mappedMessages);
+          
+          // Only update if we have new messages to avoid UI flicker
+          if (JSON.stringify(chatMessages) !== JSON.stringify(mappedMessages)) {
+            setChatMessages(mappedMessages);
+            setIsAiTyping(false); // Turn off typing indicator when we get the real response
+          }
         } else {
           console.error('Failed to fetch chat history:', response.status);
         }
@@ -48,11 +55,19 @@ const ChatComponent = () => {
       }
     };
 
+    // Initial fetch
     fetchChatHistory();
-    const intervalId = setInterval(fetchChatHistory, 2000); // Fetch every 2 seconds
+    
+    // Only start polling if the user has sent a message recently
+    let intervalId: NodeJS.Timeout;
+    if (lastMessageTimestamp > 0 && Date.now() - lastMessageTimestamp < 30000) {
+      intervalId = setInterval(fetchChatHistory, 2000); // Fetch every 2 seconds
+    }
 
-    return () => clearInterval(intervalId); // Clean up interval on unmount
-  }, [userId]);
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    }
+  }, [userId, lastMessageTimestamp]);
 
   useEffect(() => {
     const fetchStatusMessages = async () => {
@@ -89,8 +104,15 @@ const ChatComponent = () => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isAiTyping || !userId) return;
 
-    // Add user message to chat - optimistically update
-    setChatMessages(prev => [...prev, { role: 'user', content: inputMessage }]);
+    // Generate a unique ID for this message
+    const messageId = `msg-${Date.now()}`;
+    
+    // Add user message to chat immediately
+    setChatMessages(prev => [...prev, { 
+      role: 'user', 
+      content: inputMessage,
+      id: messageId
+    }]);
 
     // Clear input and reset contentEditable div
     setInputMessage('');
@@ -98,6 +120,11 @@ const ChatComponent = () => {
       inputRef.current.textContent = '';
     }
 
+    // Show AI typing indicator immediately
+    setIsAiTyping(true);
+    setSystemStatus('processing');
+    setLastMessageTimestamp(Date.now());
+    
     try {
       const response = await fetch('http://127.0.0.1:5000/sendMessage', {
         method: 'POST',
@@ -113,12 +140,12 @@ const ChatComponent = () => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      // No need to handle response, as backend updates chat_history.json
+      
+      // The actual response will be picked up by the chat history fetch
+      // But we'll keep the typing indicator on until then
     } catch (error: any) {
       console.error('Error sending message:', error);
-      // Revert optimistic update on error
-      setChatMessages(prev => prev.slice(0, -1));
-      // Optionally, display an error message to the user
+      setIsAiTyping(false);
       setSystemStatus('error');
     }
   };
@@ -131,18 +158,6 @@ const ChatComponent = () => {
     }, 2000);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'completed':
-        return <FiCheck className="text-green-500" />;
-      case 'processing':
-        return <div className="animate-spin"><FiLoader className="text-[#8c66ff]" /></div>;
-      case 'error':
-        return <div className="text-red-500">×</div>;
-      default:
-        return <FiClock className="text-gray-500" />;
-    }
-  };
 
   // ChatGPT-style typing indicator with bouncing dots
   const TypingIndicator = () => (
@@ -157,7 +172,6 @@ const ChatComponent = () => {
     </div>
   );
 
-  console.log(statusMessages)
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-full">
       {/* Status bar */}
@@ -185,9 +199,9 @@ const ChatComponent = () => {
         className="flex-1 overflow-y-auto p-4 space-y-3"
         style={{ maxHeight: 'calc(100vh - 280px)' }}
       >
-        {chatMessages.map((message, index) => (
+        {chatMessages.map((message) => (
           <div 
-            key={index} 
+            key={message.id || `${message.role}-${message.content.substring(0, 10)}`} 
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div 
