@@ -13,9 +13,28 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [titleVisible, setTitleVisible] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const router = useRouter();
+  
+  // Initial effect to control title visibility
+  useEffect(() => {
+    // Use requestAnimationFrame to wait for the browser to paint
+    // This ensures we don't get a flash of unstyled content
+    const raf = requestAnimationFrame(() => {
+      if (titleRef.current) {
+        // Keep title hidden until our GSAP animations start
+        titleRef.current.style.visibility = 'hidden';
+      }
+      
+      // The GSAP effect in the other useEffect will make it visible
+      setTitleVisible(true);
+    });
+    
+    return () => cancelAnimationFrame(raf);
+  }, []);
   
   // Refs for GSAP animations
   const containerRef = useRef<HTMLDivElement>(null);
@@ -221,20 +240,25 @@ export default function Home() {
     // Create squiggly lines SVG in the background
     createSquigglyLines();
     
-    // Animate the title without SplitText plugin
-    const titleElement = titleRef.current;
-    if (titleElement) {
-      // Get the original text content
-      const titleContent = titleElement.textContent || "";
-      
-      // Parse out the main text (everything before "AI")
-      const mainText = titleContent.replace("AI", "");
-      
-      // Clear the original text
-      titleElement.innerHTML = '';
-      
-      // Split and create character spans for the main text
-      mainText.split('').forEach(char => {
+    // Use a small delay to ensure components are fully mounted 
+    // and we don't get a flash of unstyled content
+    const titleAnimationDelay = setTimeout(() => {
+      // Ensure the title is ready for animation
+      const titleElement = titleRef.current;
+      if (titleElement) {
+        // First make sure the container itself is visible with opacity 1
+        titleElement.style.visibility = "visible";
+        titleElement.style.opacity = "1";
+        
+        // Get the original text content - we're getting text from the spans now
+        const titleText = "Fix Your Style With";
+        const aiText = "AI";
+        
+        // Clear the original text
+        titleElement.innerHTML = '';
+        
+        // Split and create character spans for the main text
+        titleText.split('').forEach(char => {
         if (char !== ' ') {
           const charSpan = document.createElement('span');
           charSpan.className = 'char';
@@ -284,6 +308,15 @@ export default function Home() {
         stagger: 0.03,
         ease: "back.out(1.7)"
       });
+      
+      // Mark as initialized
+      setIsInitialized(true);
+    }
+    }, 50); // Very small delay to prevent flash of unstyled content
+    
+    // Cleanup the timeout on unmount
+    return () => {
+      clearTimeout(titleAnimationDelay);
     }
     
     // Subtle pulse animation for upload button (continuous)
@@ -788,10 +821,25 @@ useEffect(() => {
               playsInline
             />
           </div>
-          <h1 className="text-5xl lg:text-7xl font-md mb-6 mt-10 text-center overflow-hidden" ref={titleRef}>
-            Fix Your Style With<b ref={aiTextRef} className="inline-block font-bold">AI</b>
+          {/* Hidden title container that will be populated by the GSAP effect */}
+          <h1 
+            className="text-4xl lg:text-6xl font-md mb-10 mt-10 text-center" 
+            ref={titleRef}
+            style={{ 
+              visibility: "hidden", // Hide the entire element initially 
+              height: "6rem", // Increased height for the container
+              position: "relative",
+              width: "140%", // Further increased width
+              maxWidth: "1000px", // Significantly increased max width
+              margin: "0 auto 2rem auto", // Center it and add bottom margin
+              padding: "2.5rem 3rem 0 1rem", // Increased right padding
+              left: "-15%", // Adjusted offset to keep it centered
+              transform: "translateX(5%)" // Fine-tune the centering
+            }} 
+          >
+            <noscript>Fix Your Style With AI</noscript>
           </h1>
-          <div className="flex mb-8">
+          <div className="flex justify-center mb-8 mt-6">
             <h2 className="text-2xl font-bold">
               Personalized Outfit Ideas,{' '}
               <span 
@@ -806,9 +854,9 @@ useEffect(() => {
         </div>
 
         {/* Right side - Upload area and Sample Outfits */}
-        <div className="w-full lg:w-1/2 space-y-6  ml-10">
+        <div className="w-full lg:w-1/2 space-y-6 ml-20">
           <div 
-            className="bg-white p-8 rounded-4xl transition-all duration-300 w-full max-w-xl mx-auto h-115 shadow-lg
+            className="bg-white p-8  rounded-4xl transition-all duration-300 w-full max-w-xl mx-auto h-115 shadow-lg
                        hover:shadow-[0_0_25px_5px_rgba(140,102,255,0.3)] hover:scale-[1.02]
                        border border-gray-200 hover:border-[#8c66ff]"
             onDragOver={handleDragOver}
