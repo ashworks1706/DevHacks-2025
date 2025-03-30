@@ -257,7 +257,7 @@ const UploadComponent = () => {
               No photos? Try one of these:
             </p>
             <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 3, 4].map((num) => (
+            {[1, 2, 3, 4].map((num) => (
                 <div 
                   key={num}
                   className="cursor-pointer hover:opacity-80 transition-opacity relative group"
@@ -268,7 +268,7 @@ const UploadComponent = () => {
                     alt={`Sample outfit ${num}`}
                     width={100} 
                     height={100} 
-                    className="rounded-2xl object-cover w-20 h-20"
+                    className="rounded-2xl object-cover w-20 h-20 border-2 border-[#8c66ff] shadow-md hover:shadow-[0_0_10px_rgba(140,102,255,0.5)] transition-shadow duration-300"
                   />
                   <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-20 rounded-2xl transition-all duration-200 flex items-center justify-center">
                     <span className="text-white opacity-0 group-hover:opacity-100 font-bold text-xs">Use this</span>
