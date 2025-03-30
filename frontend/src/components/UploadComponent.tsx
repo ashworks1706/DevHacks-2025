@@ -54,7 +54,10 @@ const UploadComponent = () => {
       const data = await response.json();
       setUploadStatus('Upload successful!');
       
-      return data.filePath; // Return the path where the file was saved
+      return {
+        filePath: data.filePath,
+        sessionId: data.sessionId
+      }; // Return both the path and session ID
     } catch (error) {
       console.error('Error saving file:', error);
       setUploadStatus('Upload failed. Please try again.');
@@ -72,11 +75,11 @@ const UploadComponent = () => {
       
       try {
         // Save the file to the user folder
-        const savedFilePath = await saveFileToUserFolder(file);
+        const { filePath, sessionId } = await saveFileToUserFolder(file);
         
-        // Navigate to the edit page after a short delay
+        // Navigate to the edit page after a short delay with session ID
         setTimeout(() => {
-          router.push(`/upload/edit?image=${encodeURIComponent(savedFilePath)}`);
+          router.push(`/upload/edit?image=${encodeURIComponent(filePath)}&sessionId=${encodeURIComponent(sessionId)}`);
         }, 500);
       } catch (error) {
         // Error is already handled in saveFileToUserFolder
@@ -108,11 +111,11 @@ const UploadComponent = () => {
       
       try {
         // Save the file to the user folder
-        const savedFilePath = await saveFileToUserFolder(file);
+        const { filePath, sessionId } = await saveFileToUserFolder(file);
         
-        // Navigate to the edit page after a short delay
+        // Navigate to the edit page after a short delay with session ID
         setTimeout(() => {
-          router.push(`/upload/edit?image=${encodeURIComponent(savedFilePath)}`);
+          router.push(`/upload/edit?image=${encodeURIComponent(filePath)}&sessionId=${encodeURIComponent(sessionId)}`);
         }, 500);
       } catch (error) {
         // Error is already handled in saveFileToUserFolder
@@ -127,6 +130,7 @@ const UploadComponent = () => {
 
   const handleSampleImageClick = (imagePath: string) => {
     // For demo purposes, treat sample images as if they were uploaded
+    // Note: Sample images won't have chat history since they're predefined
     router.push(`/upload/edit?image=${encodeURIComponent(imagePath)}`);
   };
 
