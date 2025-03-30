@@ -89,7 +89,7 @@ def modify_image_with_replacement(image_path):
             
             # Try to get a font that works across systems
             try:
-                font = ImageFont.truetype("Arial.ttf", 14)
+                font = ImageFont.truetype("Arial.ttf", 20)
             except IOError:
                 # Fallback to default font
                 font = ImageFont.load_default()
@@ -184,6 +184,8 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
     global files, responses, task_running, task_error, client,grounding_sources, chat_history, conversation_complete
     model = "gemini-2.0-flash"
     chat_history = load_chat_history(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json")
+    chat_history.append({"user": query})
+    save_chat_history(chat_history, f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json") 
 
     # /home/ash/DevHacks-2025/frontend/public/users/user_2v1sELLPUpnBpR8pviRBtRvMFqE/chat_history.json
     user_info = load_user_info(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/preferences.json")
@@ -267,13 +269,27 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
         
     generate_content_config = types.GenerateContentConfig(
         tools=tools,
-        system_instruction="""Act as
-        2) `access_closet_analysis_agent` : can get detailed description about the image\n
-        3) `access_style_match_agent` : can get inspiration from web detailed to prebuilt knowledge of user's preferred taste. 
-        
-        Use these agents to gather additional information about the user's environment, analyze their closet in detail, and match their style preferences. Please use your functions to answer the user's query. Call one function at a time. Always provide detailed answers. After providing a final recommendation, do not call any more functions and end the conversation.""",
-        temperature=0.5,
+        system_instruction="""Act as Lux, an expert AI Fashion Stylist with 15+ years of experience working with diverse clients. You provide personalized outfit recommendations by orchestrating three specialized sub-agents:
+
+1) `access_environment_agent`: Call this FIRST to gather critical contextual factors (weather conditions, location characteristics, event dress codes, venue ambiance) that will inform your recommendations.
+
+2) `access_closet_analysis_agent`: Call this SECOND to get a professional inventory of the user's wardrobe, including garment types, condition, color palette, fabric composition, and style categorization.
+
+3) `access_style_match_agent`: Call this THIRD to find trending inspiration that aligns with the user's style profile while considering their existing wardrobe pieces.
+
+Follow this structured workflow for each query:
+- Begin with a warm, personalized greeting acknowledging the user's fashion needs
+- Gather all necessary context before making recommendations
+- Call agents sequentially, analyzing the information from each before proceeding
+- Format your final recommendations with clear sections: Event-Appropriate Options, Mix-and-Match Suggestions, and Styling Tips
+- Include rationale for each recommendation referencing user preferences
+- End with a confident, encouraging statement about the user's look
+
+Your tone should be friendly yet professional, knowledgeable but approachable. Avoid fashion jargon unless providing educational value.
+""",
+        temperature=0.2,
         response_mime_type="text/plain",
+
     )
     
     task_running = True
@@ -295,8 +311,29 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
                 config=GenerateContentConfig(
                 tools=[Tool(google_search=GoogleSearch())],
                 response_modalities=["TEXT"],
-                system_instruction="You are a helpful assistant that uses Google Search to provide information about weather, location, and venue vibes.",
-                max_output_tokens=600
+                system_instruction="""You are a specialized Environment Intelligence Agent with expertise in extracting fashion-relevant contextual information. Your mission is to provide precise, actionable data about:
+
+                1) WEATHER CONDITIONS:
+                - Current and forecasted temperature (with exact ranges in °F/°C)
+                - Precipitation probability and type (rain, snow, etc.)
+                - Wind conditions (if relevant to outerwear choices)
+                - Humidity levels (affects fabric comfort)
+                - UV index (for sun protection considerations)
+
+                2) LOCATION SPECIFICS:
+                - Local dress norms and cultural considerations
+                - Terrain and walking requirements (affecting footwear choices)
+                - Indoor/outdoor environment expectations
+                - Level of formality common to the area
+
+                3) VENUE/EVENT ANALYSIS:
+                - Explicit and implicit dress codes
+                - Duration of event (affecting comfort requirements)
+                - Activity level expected (seated vs. standing/dancing)
+                - Special considerations (religious venues, professional settings)
+
+                Format your response in clearly labeled sections with bullet points, prioritizing information that directly impacts clothing choices. Include confidence levels for each insight. Do NOT provide general travel advice or unrelated venue information. Focus exclusively on factors that influence the user's outfit selection.
+                """,
                 )
             )
             try:
@@ -397,9 +434,38 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
                 contents=prompt,
                 config=GenerateContentConfig(
                 tools=[],
+                
                 response_modalities=["TEXT"],
-                system_instruction="You are a closet analysis agent. Analyze the user's closet images to detect clothing types, color profiles, and style patterns.",
-                max_output_tokens=600
+                system_instruction="""You are an expert Wardrobe Analyst with training in fashion merchandising, color theory, and garment construction. Your task is to conduct a comprehensive analysis of the user's closet image with professional precision.
+
+Perform your analysis in these specific categories:
+
+1) INVENTORY ASSESSMENT:
+   - Identify and count each garment type (tops, bottoms, dresses, outerwear, etc.)
+   - Note presence/absence of essential wardrobe pieces
+   - Identify statement pieces and versatile basics
+   - Assess seasonal distribution and potential gaps
+
+2) COLOR ANALYSIS:
+   - Identify dominant color palette (warm/cool tones, neutrals vs. bold colors)
+   - Note color coordination potential (complementary colors, monochromatic options)
+   - Highlight unique or signature colors in the collection
+   - Identify color gaps that limit outfit creation
+
+3) STYLE CLASSIFICATION:
+   - Determine predominant style categories (casual, business, athleisure, etc.)
+   - Identify pattern types and their frequency (solid, striped, floral, etc.)
+   - Assess fabric variety and quality indicators
+   - Note brand presence and price point indicators
+
+4) VERSATILITY EVALUATION:
+   - Identify mix-and-match potential
+   - Note proportion of trend-specific vs. timeless pieces
+   - Assess layering possibilities
+   - Identify occasion coverage (work, casual, formal, etc.)
+
+Present your analysis in a structured format with visual cues detected from the image. Use precise fashion terminology but provide explanations where helpful. Focus exclusively on what is visible in the image - do NOT make assumptions about hidden items.
+""",
                 )
             )
             print("\nCloset Agent @ ",response)
@@ -432,9 +498,40 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
         
         generate_content_config = types.GenerateContentConfig(
         tools=tools,
-        system_instruction="You are a Style Match agent. You have to use Pinterest to search for inspiration images. Analyze the user's closet and the Pinterest images to provide fashion recommendations. Please consider the user's interests, fashion style preferences, and the context of the event.",
-        temperature=0.8,
+        system_instruction="""You are a cutting-edge Fashion Curation AI specializing in personalized style matching. Your expertise combines trend forecasting, personal styling, and visual analytics to connect users with their ideal aesthetic.
+
+Your process for generating relevant Pinterest inspiration and recommendations:
+
+1) QUERY GENERATION:
+   - Construct highly specific, targeted Pinterest search queries using a combination of:
+     * User's stated style preferences AND closet analysis
+     * Current season and relevant trends
+     * Occasion-specific keywords
+     * Style modifiers (e.g., "minimalist," "bohemian chic," "corporate casual")
+     * Color-specific terms aligning with user's palette
+   - Format queries with 3-5 precise keywords (example: "minimalist navy office outfits spring 2025")
+
+2) INSPIRATION ANALYSIS:
+   - When analyzing Pinterest results, evaluate each image for:
+     * Adaptability to user's existing wardrobe
+     * Alignment with body type and lifestyle needs
+     * Current trend relevance (offering both trendy and timeless options)
+     * Versatility and mix-and-match potential
+     * Accessibility within stated budget constraints
+
+3) RECOMMENDATION SYNTHESIS:
+   - For each recommendation, provide:
+     * Direct connection to user's style profile
+     * Specific items from user's closet to recreate the look
+     * Suggested additions if something is missing
+     * Multiple styling variations of the same core pieces
+     * Confidence rating on match appropriateness
+
+Your outputs should be visual-first, focusing on the specific elements in the Pinterest images that make them suitable for the user. Avoid generic fashion advice and prioritize personalized, actionable recommendations that utilize their existing wardrobe while identifying thoughtful additions.
+""",
+        temperature=0.4,
         response_mime_type="text/plain",
+
         )
         
         model = "gemini-2.0-flash"
@@ -484,22 +581,22 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
         return generation_result.candidates[-1].content.parts[-1].text
         
     async def handle_function_call(function_call):
-            function_name = function_call.name
-            function_args = function_call.args
-            if function_name == "access_environment_agent":
-                result = await access_environment_agent(function_args["instruction_to_agent"])
-                print("\nEnvironment Agent Called")
-                return result
-            elif function_name == "access_closet_analysis_agent":
-                result =  await access_closet_analysis_agent(function_args["instruction_to_agent"])
-                print ("\nCloset Agent Called")
-                return result
-            elif function_name == "access_style_match_agent":
-                result = await access_style_match_agent(function_args["instruction_to_agent"])
-                print ("\nStyle Agent Called")
-                return result
-            else:
-                return f"Unknown function: {function_name}"
+        function_name = function_call.name
+        function_args = function_call.args
+        if function_name == "access_environment_agent":
+            result = await access_environment_agent(function_args["instruction_to_agent"])
+            print("\nEnvironment Agent Called")
+            return result
+        elif function_name == "access_closet_analysis_agent":
+            result = await access_closet_analysis_agent(function_args["instruction_to_agent"])
+            print("\nCloset Agent Called")
+            return result
+        elif function_name == "access_style_match_agent":
+            result = await access_style_match_agent(function_args["instruction_to_agent"])
+            print("\nStyle Agent Called")
+            return result
+        else:
+            return f"Unknown function: {function_name}"
 
     if files is None:
         try:
@@ -512,15 +609,9 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
     else:
         print("Files already uploaded, skipping upload step")
     # Include chat history in the content
-    contents=[]
+    old_contents=[]
     try:
-        for turn in chat_history:
-            if "user" in turn:
-                contents.append(types.Content(role="user", parts=[types.Part.from_text(text=turn["user"])]))
-            if "model" in turn:
-                contents.append(types.Content(role="model", parts=[types.Part.from_text(text=turn["model"])]))
-            
-        contents.append(
+        old_contents.append(
             types.Content(
                 role="user",
                 parts=[
@@ -536,49 +627,83 @@ async def create_superior_agent(query, image_path, audio_path,user_id):
                 ],
             ),
         )
+        for turn in chat_history:
+            if "user" in turn:
+                old_contents.append(types.Content(role="user", parts=[types.Part.from_text(text=turn["user"])]))
+            if "model" in turn:
+                old_contents.append(types.Content(role="model", parts=[types.Part.from_text(text=turn["model"])]))
+            
     except Exception as e:  
         raise Exception(f"Failed to prepare contents: {str(e)}")
 
     
     generation_result = client.models.generate_content(
-    model=model,
-    contents=contents,
-    config=generate_content_config,
-    )
-    print("\nSuperior Agent @ ",generation_result)
-    
-    while generation_result.candidates[-1].content.parts[-1].function_call:
-        function_call = generation_result.candidates[-1].content.parts[-1].function_call
-        function_response = await handle_function_call(function_call)
-        # Send the function response back to the model
-        generation_result = client.models.generate_content(
-            model=model,
-            contents=[
-                *contents,
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_text(text=f"(System Generated, User cannot see this)\n{function_call} : Response :\n{function_response}.\n"),
-                    ]
-                )
-            ],
-            config=generate_content_config,
-        )
-        print("\nSuperior Agent nested @ ",generation_result, f"\n for {contents}")
+        model=model,
+        contents=old_contents,
+        config=generate_content_config,
 
-        # if generation_result.candidates[-1].content.parts[-1].text:
-        #     # Save the conversation turn to chat history
-        #     chat_history.append({"user": query}, {"model": generation_result.candidates[-1].content.parts[-1].text})
-        #     save_chat_history(chat_history, f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json") 
+    )
+    print("\nSuperior Agent @ ", generation_result)
+    # Continue handling responses until no more function calls
+    has_function_calls = True
+    while has_function_calls:
+        has_function_calls = False
+
+
+        for candidate in generation_result.candidates:
+            for part in candidate.content.parts:
+                if hasattr(part, 'text') and part.text:
+                    print("\ntext detected \n")
+                    text_response = part.text
+                    chat_history.append({"model": text_response})
+                    save_chat_history(chat_history, f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json")
+                    old_contents.append(types.Content(
+                        role="model",
+                        parts=[
+                            types.Part.from_text(
+                                text=text_response
+                            ),
+                        ]
+                    ))
+                    
+                if not (hasattr(part, 'function_call') or part.function_call):
+                    print("\nNo function call detected \n")
+                    has_function_calls = False
+                    break
+                    
+                    
+                
+                if hasattr(part, 'function_call') and part.function_call:
+                    print("\nFunction call detected \n")
+                    has_function_calls = True
+                    function_call = part.function_call
+                    function_response = await handle_function_call(function_call)
+                    
+                    # Update the conversation context with the function call response
+                    new_content = types.Content(
+                        role="user",
+                        parts=[
+                            types.Part.from_text(
+                                text=f"(System Generated, User cannot see this)\n{function_call} : Response :\n{function_response}.\n"
+                            ),
+                        ]
+                    )
+                    old_contents.append(new_content)
+                    print("\nNew content added to old contents @ ", old_contents)
+                    
+                    generation_result = client.models.generate_content(
+                        model=model,
+                        contents=old_contents,
+                        config=generate_content_config,
+                    )
+                    print("\nSuperior Agent after function call @ ", generation_result)
             
-    if generation_result.candidates[-1].content.parts[-1].text:
-        # Save the conversation turn to chat history
-        chat_history.append({"user": query})
-        chat_history.append( {"model": generation_result.candidates[-1].content.parts[-1].text})
-        save_chat_history(chat_history, f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json") 
+
     
     global grounding_sources
-    append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", grounding_sources)
+    if grounding_sources:
+        append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", grounding_sources)
+    
     task_running = False    
     return responses
              
