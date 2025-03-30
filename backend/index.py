@@ -618,10 +618,6 @@ Your outputs should be visual-first, focusing on the specific elements in the Pi
                         file_uri=files[0].uri,
                         mime_type=files[0].mime_type,
                     ),
-                    types.Part.from_uri(
-                        file_uri=files[1].uri,
-                        mime_type=files[1].mime_type,
-                    ),
                     types.Part.from_text(text=query),
                 ],
             ),
