@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { 
   FiUpload, FiMic, 
   FiCheck, FiLoader, FiClock,
@@ -37,51 +38,6 @@ declare global {
   }
 }
 
-interface ChatComponentProps {
-  systemStatus: 'idle' | 'processing' | 'completed' | 'error';
-  statusMessages: {status: string; message: string; time: string}[];
-  userId?: string; // Optional user ID for saving recordings
-}
-
-interface ChatMessage {
-  role: 'user' | 'ai';
-  content: string;
-  isLoading?: boolean;
-  audioUrl?: string; // URL to the audio file if message was recorded
-  filePath?: string; // Server path to the audio file
-  sessionId?: string; // Session ID for the recording
-}
-
-interface VoiceState {
-  isRecording: boolean;
-  isPaused: boolean;
-  transcript: string;
-  audioBlob?: Blob;
-  audioUrl?: string;
-  filePath?: string;
-  sessionId?: string;
-  recordingTime: number;
-}
-
-interface UserRecording {
-  id: number;
-  timestamp: string;
-  fileName: string;
-  transcript: string;
-  audioUrl?: string; // URL to the audio file
-  filePath?: string; // Server path to the audio file
-  sessionId?: string; // Session ID for the recording
-}
-
-interface UploadResponse {
-  success: boolean;
-  filePath: string;
-  userId: string;
-  sessionId: string;
-  repliesFile: string;
-  responsesFile: string;
-}
-
 // Define SpeechRecognition event types
 interface SpeechRecognitionResult {
   readonly length: number;
@@ -112,44 +68,134 @@ interface SpeechRecognitionErrorEvent extends Event {
   message?: string;
 }
 
-const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: ChatComponentProps) => {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { role: 'ai', content: 'Hello! I\'m your Lux assistant. I can analyze your outfit and provide recommendations. What would you like to know?' }
-  ]);
+interface UploadResponse {
+  success: boolean;
+  filePath: string;
+  userId: string;
+  sessionId: string;
+  repliesFile: string;
+  responsesFile: string;
+}
+
+interface ChatMessage {
+  role: 'user' | 'ai';
+  content: string;
+  isLoading?: boolean;
+  id?: string; // For tracking messages
+  audioUrl?: string; // URL to the audio file if message was recorded
+  filePath?: string; // Server path to the audio file
+  sessionId?: string; // Session ID for the recording
+}
+
+interface VoiceState {
+  isRecording: boolean;
+  isPaused: boolean;
+  transcript: string;
+  audioBlob?: Blob;
+  audioUrl?: string;
+  filePath?: string;
+  sessionId?: string;
+  recordingTime: number;
+}
+
+const ChatComponent = () => {
+  const { user } = useUser();
+  const userId = user?.id;
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
-  const [userRecordings, setUserRecordings] = useState<UserRecording[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
+  const [systemStatus, setSystemStatus] = useState<'idle' | 'processing' | 'completed' | 'error'>('idle');
+  const [statusMessages, setStatusMessages] = useState<any>([]);
+  const [lastMessageTimestamp, setLastMessageTimestamp] = useState<number>(0);
   
-  // Voice recording state
+  // Voice recording state and refs
   const [voiceState, setVoiceState] = useState<VoiceState>({
     isRecording: false,
     isPaused: false,
     transcript: '',
     recordingTime: 0
   });
-  
-  // Refs
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load recordings when component mounts or userId changes
   useEffect(() => {
-    const recordings = loadUserRecordings();
-    setUserRecordings(recordings);
-    console.log(`Loaded ${recordings.length} recordings for user:`, userId);
+    console.log(userId)
+    const fetchChatHistory = async () => {
+      try {
+        if (!userId) return;
+        const response = await fetch(`/users/${userId}/chat_history.json`);
+        if (response.ok) {
+          const data = await response.json();
+          // Map the chat history to the ChatMessage interface
+          const mappedMessages = data.map((message: any, index: number) => ({
+            role: message.user ? 'user' : 'ai',
+            content: message.user || message.model,
+            id: `history-${index}`,
+          }));
+          
+          // Only update if we have new messages to avoid UI flicker
+          if (JSON.stringify(chatMessages) !== JSON.stringify(mappedMessages)) {
+            setChatMessages(mappedMessages);
+            setIsAiTyping(false); // Turn off typing indicator when we get the real response
+          }
+        } else {
+          console.error('Failed to fetch chat history:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching chat history:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchChatHistory();
+    
+    // Only start polling if the user has sent a message recently
+    let intervalId: NodeJS.Timeout;
+    if (lastMessageTimestamp > 0 && Date.now() - lastMessageTimestamp < 30000) {
+      intervalId = setInterval(fetchChatHistory, 2000); // Fetch every 2 seconds
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    }
+  }, [userId, lastMessageTimestamp]);
+
+  useEffect(() => {
+    const fetchStatusMessages = async () => {
+      try {
+        if (!userId) return;
+        const response = await fetch(`/users/${userId}/responses.json`);
+        if (response.ok) {
+          const data = await response.json();
+          setStatusMessages(data);
+          
+        } else {
+          console.error('Failed to fetch status messages:', response.status);
+          setSystemStatus('error');
+        }
+      } catch (error) {
+        console.error('Error fetching status messages:', error);
+        setSystemStatus('error');
+      }
+    };
+
+    fetchStatusMessages();
+    const intervalId = setInterval(fetchStatusMessages, 2000); // Fetch every 2 seconds
+
+    return () => clearInterval(intervalId); // Clean up interval on unmount
   }, [userId]);
 
-  // Handle scrolling when chat updates
   useEffect(() => {
+    // Scroll to bottom of chat when new messages are added
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [chatMessages, isAiTyping]);
+  }, [chatMessages]);
 
   // Initialize Web Speech API if available
   useEffect(() => {
@@ -195,14 +241,79 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
     };
   }, []);
 
-  // Load user recordings from storage
-  const loadUserRecordings = (): UserRecording[] => {
+  const handleSendMessage = async () => {
+    if ((!inputMessage.trim() && !voiceState.audioUrl) || isAiTyping || isUploading || !userId) return;
+
+    // If we're still recording, stop the recording first
+    if (voiceState.isRecording) {
+      stopRecording();
+      // Wait a brief moment for the recording to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Generate a unique ID for this message
+    const messageId = `msg-${Date.now()}`;
+    
+    // Prepare message content
+    const messageContent = inputMessage.trim() || voiceState.transcript || 'Voice message';
+    
+    // Add user message to chat immediately
+    setChatMessages(prev => [...prev, { 
+      role: 'user', 
+      content: messageContent,
+      id: messageId,
+      audioUrl: voiceState.audioUrl,
+      filePath: voiceState.filePath,
+      sessionId: voiceState.sessionId
+    }]);
+
+    // Clear input and reset contentEditable div
+    setInputMessage('');
+    if (inputRef.current) {
+      inputRef.current.textContent = '';
+    }
+
+    // Reset voice state
+    setVoiceState({
+      isRecording: false,
+      isPaused: false,
+      transcript: '',
+      recordingTime: 0
+    });
+    
+    // Show AI typing indicator immediately
+    setIsAiTyping(true);
+    setSystemStatus('processing');
+    setLastMessageTimestamp(Date.now());
+    
     try {
-      const recordings = JSON.parse(localStorage.getItem(`voiceRecordings-${userId}`) || '[]');
-      return recordings;
-    } catch (error) {
-      console.error('Error loading user recordings:', error);
-      return [];
+      // Create form data for sending both text and audio if available
+      const formData = new FormData();
+      formData.append('userid', userId);
+      formData.append('text', messageContent);
+      
+      // If we have audio recording, add it to the form data
+      if (voiceState.audioBlob) {
+        const fileName = `recording-${Date.now()}.mp3`;
+        const audioFile = new File([voiceState.audioBlob], fileName, { type: 'audio/mp3' });
+        formData.append('audio', audioFile);
+      }
+      
+      const response = await fetch('http://127.0.0.1:5000/sendMessage', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      // The actual response will be picked up by the chat history fetch
+      // But we'll keep the typing indicator on until then
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      setIsAiTyping(false);
+      setSystemStatus('error');
     }
   };
 
@@ -245,27 +356,13 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
         // Close the media stream
         stream.getTracks().forEach(track => track.stop());
         
-        // Save the recording to the server and update state
-        const savedRecording = await uploadRecording(audioBlob, voiceState.transcript);
-        
-        if (savedRecording) {
-          setVoiceState(prev => ({
-            ...prev,
-            isRecording: false,
-            audioBlob,
-            audioUrl,
-            filePath: savedRecording.filePath,
-            sessionId: savedRecording.sessionId
-          }));
-        } else {
-          // Fallback if server upload fails - still keep local URL
-          setVoiceState(prev => ({
-            ...prev,
-            isRecording: false,
-            audioBlob,
-            audioUrl
-          }));
-        }
+        // Update state with recording info
+        setVoiceState(prev => ({
+          ...prev,
+          isRecording: false,
+          audioBlob,
+          audioUrl
+        }));
       };
       
       // Start speech recognition
@@ -293,7 +390,6 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
     } catch (error) {
       console.error('Error accessing microphone:', error);
       // Show error in status messages
-      handleStatusUpdate('error', 'Could not access microphone. Please check permissions.');
     }
   };
 
@@ -318,85 +414,6 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
     }
   };
 
-  // Upload recording to server
-  const uploadRecording = async (audioBlob: Blob, transcript: string): Promise<{filePath: string, sessionId: string} | null> => {
-    try {
-      setIsUploading(true);
-      handleStatusUpdate('processing', 'Uploading voice recording...');
-      
-      // Create a file from the blob
-      const fileName = `recording-${Date.now()}.mp3`;
-      const audioFile = new File([audioBlob], fileName, { type: 'audio/mp3' });
-      
-      // Create form data for upload
-      const formData = new FormData();
-      formData.append('file', audioFile);
-      
-      // Add transcript as metadata
-      formData.append('transcript', transcript || '');
-      
-      // Upload to server
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to upload recording');
-      }
-      
-      const responseData: UploadResponse = await response.json();
-      
-      // Create recording object
-      const newRecording: UserRecording = {
-        id: Date.now(),
-        timestamp: new Date().toISOString(),
-        fileName: fileName,
-        transcript: transcript || '',
-        audioUrl: URL.createObjectURL(audioBlob),
-        filePath: responseData.filePath,
-        sessionId: responseData.sessionId
-      };
-      
-      // Add to user recordings in state
-      const updatedRecordings = [...userRecordings, newRecording];
-      setUserRecordings(updatedRecordings);
-      
-      // Store in localStorage by user ID
-      localStorage.setItem(`voiceRecordings-${userId}`, JSON.stringify(updatedRecordings));
-      
-      handleStatusUpdate('completed', `Voice recording saved for user: ${userId}`);
-      setIsUploading(false);
-      
-      return {
-        filePath: responseData.filePath,
-        sessionId: responseData.sessionId
-      };
-    } catch (error) {
-      console.error('Error uploading recording:', error);
-      handleStatusUpdate('error', 'Failed to upload recording to server');
-      setIsUploading(false);
-      
-      // Save locally as fallback
-      const newRecording: UserRecording = {
-        id: Date.now(),
-        timestamp: new Date().toISOString(),
-        fileName: `recording-${Date.now()}.mp3`,
-        transcript: transcript || '',
-        audioUrl: URL.createObjectURL(audioBlob)
-      };
-      
-      // Add to user recordings in state
-      const updatedRecordings = [...userRecordings, newRecording];
-      setUserRecordings(updatedRecordings);
-      
-      // Store in localStorage by user ID
-      localStorage.setItem(`voiceRecordings-${userId}`, JSON.stringify(updatedRecordings));
-      
-      return null;
-    }
-  };
-
   // Format recording time as MM:SS
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -404,91 +421,11 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Add status update
-  const handleStatusUpdate = (status: string, message: string) => {
-    // This function would be called to update status messages in a real app
-    console.log(`Status: ${status}, Message: ${message}`);
-  };
-
-  const handleSendMessage = async () => {
-    // Don't send if there's no content or if AI is already responding
-    if ((!inputMessage.trim() && !voiceState.audioUrl) || isAiTyping || isUploading) return;
-    
-    // If we're still recording, stop the recording first
-    if (voiceState.isRecording) {
-      stopRecording();
-      // Wait a brief moment for the recording to process
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    
-    // Prepare message content
-    const messageContent = inputMessage.trim() || voiceState.transcript || 'Voice message';
-    
-    // Add user message to chat
-    setChatMessages(prev => [...prev, { 
-      role: 'user', 
-      content: messageContent,
-      audioUrl: voiceState.audioUrl,
-      filePath: voiceState.filePath,
-      sessionId: voiceState.sessionId
-    }]);
-    
-    // Clear input and reset contentEditable div
-    setInputMessage('');
-    if (inputRef.current) {
-      inputRef.current.textContent = '';
-    }
-    
-    // Reset voice state
-    setVoiceState({
-      isRecording: false,
-      isPaused: false,
-      transcript: '',
-      recordingTime: 0
-    });
-    
-    // Show AI is typing
-    setIsAiTyping(true);
-    
-    // Simulate AI response after a delay
-    setTimeout(() => {
-      const responses = [
-        "Your outfit has a smart casual style. I particularly like how the colors work together!",
-        "Based on current trends, I'd suggest pairing this with a minimalist accessory like a silver bracelet or watch.",
-        "This outfit would work well for a variety of occasions including work meetings, lunch with friends, or casual evening events.",
-        "The fit of your clothing appears good. The proportions are balanced nicely between top and bottom.",
-        "For similar styles, you might like to try incorporating more layered pieces like light jackets or cardigans."
-      ];
-      
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      setIsAiTyping(false);
-      setChatMessages(prev => [...prev, { role: 'ai', content: randomResponse }]);
-    }, 1500);
-  };
-
   const handleVoiceInput = () => {
     if (voiceState.isRecording) {
       stopRecording();
     } else {
-      // Clear existing text before starting a new recording
-      setInputMessage('');
-      if (inputRef.current) {
-        inputRef.current.textContent = '';
-      }
       startRecording();
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'completed':
-        return <FiCheck className="text-green-500" />;
-      case 'processing':
-        return <div className="animate-spin"><FiLoader className="text-[#8c66ff]" /></div>;
-      case 'error':
-        return <div className="text-red-500">×</div>;
-      default:
-        return <FiClock className="text-gray-500" />;
     }
   };
 
@@ -510,7 +447,7 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
       {/* Status bar */}
       <div className="border-b border-gray-200 py-3 px-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Lux Assistant</h2>
+          <h2 className="text-lg font-bold">FashionAI Assistant</h2>
           <div className="flex items-center space-x-2">
             <span className={`inline-block h-2 w-2 rounded-full ${
               systemStatus === 'idle' ? 'bg-gray-400' :
@@ -532,9 +469,9 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
         className="flex-1 overflow-y-auto p-4 space-y-3"
         style={{ maxHeight: 'calc(100vh - 280px)' }}
       >
-        {chatMessages.map((message, index) => (
+        {chatMessages.map((message) => (
           <div 
-            key={index} 
+            key={message.id || `${message.role}-${message.content.substring(0, 10)}`} 
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div 
@@ -561,32 +498,46 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
       </div>
       
       {/* System status log */}
-      {statusMessages.length > 0 && (
-        <div className="border-t border-gray-200 py-2 px-4 bg-gray-50">
-          <h3 className="text-xs font-semibold text-gray-500 mb-1">System Status</h3>
-          <div className="space-y-1 max-h-[80px] overflow-y-auto">
-            {statusMessages.slice(-3).map((status, index) => (
-              <div key={index} className="flex items-center text-xs">
-                <div className="mr-2">
-                  {getStatusIcon(status.status)}
-                </div>
-                <div className="flex-1">{status.message}</div>
-                <div className="text-xs text-gray-500">{status.time}</div>
+        {statusMessages && statusMessages.length > 0 && (
+          <div className="border-t border-gray-200 py-2 px-4 bg-gray-50">
+            <h3 className="text-xs font-semibold text-gray-500 mb-1">System Status</h3>
+            <div className="space-y-1 max-h-[80px] overflow-y-auto">
+            {statusMessages.filter((status:any, index:any, self:any) =>
+              index === self.findIndex((t:any) => (
+              JSON.stringify(t) === JSON.stringify(status)
+              ))
+            ).map((status :any, index:any) => (
+            <div key={index} className="flex items-center text-xs">
+              <div className="flex-1">
+              {Array.isArray(status) ? (
+              status.map((link, linkIndex) => {
+                try {
+                const url = new URL(link);
+                return (
+                <button key={linkIndex} className="bg-purple-200 hover:bg-purple-300 text-purple-800 font-bold py-1 px-2 rounded mr-2 mb-1">
+                {url.hostname}
+                </button>
+                );
+                } catch (error) {
+                return (
+                <button key={linkIndex} className="bg-red-200 hover:bg-red-300 text-red-800 font-bold py-1 px-2 rounded mr-2 mb-1">
+                Invalid URL
+                </button>
+                );
+                }
+              })
+              ) : (
+              <>
+              {status}
+              <br />
+              </>
+              )}
               </div>
+            </div>
             ))}
+            </div>
           </div>
-        </div>
-      )}
-      
-      {/* User Recordings Count - Shows how many recordings this user has */}
-      {userRecordings.length > 0 && (
-        <div className="border-t border-gray-200 py-1 px-4 bg-gray-50">
-          <div className="text-xs text-gray-500 flex items-center">
-            <FiMic className="mr-1 text-[#8c66ff]" size={12} /> 
-            <span>{userRecordings.length} voice recording{userRecordings.length !== 1 ? 's' : ''} saved for {userId}</span>
-          </div>
-        </div>
-      )}
+        )}
       
       {/* Voice recording indicator */}
       {voiceState.isRecording && (
@@ -621,17 +572,7 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
           </div>
         </div>
       )}
-      
-      {/* Upload status indicator */}
-      {isUploading && (
-        <div className="border-t border-gray-200 py-2 px-4 bg-[#f0f7ff] flex items-center">
-          <div className="animate-spin mr-2">
-            <FiLoader className="text-[#8c66ff]" />
-          </div>
-          <span className="text-sm text-gray-700">Saving recording to your folder...</span>
-        </div>
-      )}
-      
+        
       {/* Voice transcript preview */}
       {voiceState.isRecording && voiceState.transcript && (
         <div className="border-t border-gray-200 py-2 px-4 bg-white">
@@ -648,7 +589,7 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
           <button 
             onClick={handleVoiceInput}
             className={`icon-button ${voiceState.isRecording ? 'bg-red-50 text-red-500' : 'text-[#8c66ff] hover:text-[#7c52f2]'} transition-colors relative`}
-            disabled={isAiTyping || isUploading}
+            disabled={isAiTyping}
           >
             <span className={`absolute inset-0 rounded-full bg-transparent transition-opacity opacity-0 ${voiceState.isRecording ? 'hover:bg-red-100' : 'hover:bg-purple-50'} hover:opacity-100`}></span>
             <FiMic className={`w-5 h-5 stroke-current relative z-10 ${voiceState.isRecording ? 'animate-pulse' : ''}`} />
@@ -658,9 +599,8 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
           <div
             ref={inputRef}
             role="textbox"
-            contentEditable={!isAiTyping && !voiceState.isRecording && !isUploading}
+            contentEditable={!isAiTyping && !voiceState.isRecording}
             data-placeholder={
-              isUploading ? "Saving recording..." :
               voiceState.isRecording ? "Listening..." : 
               "How can I help you today?"
             }
@@ -670,14 +610,14 @@ const ChatComponent = ({ systemStatus, statusMessages, userId = 'anonymous' }: C
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
             style={{ 
               wordBreak: 'break-word', 
-              cursor: (isAiTyping || voiceState.isRecording || isUploading) ? 'not-allowed' : 'text' 
+              cursor: (isAiTyping || voiceState.isRecording) ? 'not-allowed' : 'text' 
             }}
           ></div>
           
           {/* Plus/Upload button - Right side */}
           <button
             className="icon-button text-[#8c66ff] hover:text-[#7c52f2] ml-3 transition-colors relative"
-            disabled={isAiTyping || voiceState.isRecording || isUploading}
+            disabled={isAiTyping || voiceState.isRecording}
           >
             <span className="absolute inset-0 rounded-full bg-transparent transition-opacity opacity-0 hover:opacity-100 hover:bg-purple-50"></span>
             <FiPlus className="w-5 h-5 stroke-current relative z-10" />
