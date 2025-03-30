@@ -2,6 +2,7 @@ import base64
 import os
 import traceback
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from google import genai
 from google.genai import types
 import asyncio
@@ -14,6 +15,7 @@ import time
 import json
 
 app = Flask(__name__)
+CORS(app)
 global files, responses, task_running, task_error, client, grounding_sources, chat_history, conversation_complete, user_id
 grounding_sources=[]
 responses = []
@@ -32,7 +34,7 @@ def load_user_info(file_path):
 
 
 # Load chat history from file
-def load_chat_history(file_path=f"users/{user_id}/chat_history.json"):
+def load_chat_history(file_path):
     try:
         with open(file_path, 'r') as f:
             chat_history = json.load(f)
@@ -41,10 +43,13 @@ def load_chat_history(file_path=f"users/{user_id}/chat_history.json"):
     return chat_history
 
 # Save chat history to file
-def save_chat_history(chat_history, file_path=f"users/{user_id}/chat_history.json"):
-    with open(file_path, 'w') as f:
-        json.dump(chat_history, f)
-
+def save_chat_history(chat_history ,file_path):
+    try:
+        with open(file_path, 'w') as f:
+            json.dump(chat_history, f, indent=4)
+# Append data to JSON file
+    except Exception as e:
+        print(f"Error saving chat history: {e}")
 
 
 def append_to_json(file_path, data):
@@ -61,12 +66,15 @@ def append_to_json(file_path, data):
         with open(file_path, 'w') as f:
             json.dump([data], f, indent=4)
 
-async def create_superior_agent(query, image_path, audio_path):
+async def create_superior_agent(query, image_path, audio_path,user_id):
     global files, responses, task_running, task_error, client,grounding_sources, chat_history, conversation_complete
     model = "gemini-2.0-flash"
-    chat_history = load_chat_history()
+    chat_history = load_chat_history(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json")
+
+    # /home/ash/DevHacks-2025/frontend/public/users/user_2v1sELLPUpnBpR8pviRBtRvMFqE/chat_history.json
+    user_info = load_user_info(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/preferences.json")
     
-    user_info = load_user_info(f"/home/ash/backend/users/{user_id}/preferences.json")
+
     user_info_string = f"""User Profile:
         User ID: {user_info['user_id']}
         Name: {user_info['name']}, Age: {user_info['age']}, Gender: {user_info['gender']}
@@ -145,9 +153,7 @@ async def create_superior_agent(query, image_path, audio_path):
         
     generate_content_config = types.GenerateContentConfig(
         tools=tools,
-        system_instruction="""Act as a fashion assistant known as Lux. You will be provided with an image of the user and their closet, along with audio input. Your task is to analyze the images and audio to provide personalized fashion recommendations detailed towards user taste. 
-        
-        \n1) `access_environment_agent` : can get the weather of the given location \n
+        system_instruction="""Act as
         2) `access_closet_analysis_agent` : can get detailed description about the image\n
         3) `access_style_match_agent` : can get inspiration from web detailed to prebuilt knowledge of user's preferred taste. 
         
@@ -157,6 +163,9 @@ async def create_superior_agent(query, image_path, audio_path):
     )
     
     task_running = True
+    
+
+    
     
     async def access_environment_agent(instruction_to_agent : str):
         try:
@@ -192,10 +201,9 @@ async def create_superior_agent(query, image_path, audio_path):
         response = requests.get(url, allow_redirects=True)
         return response.url
     
-    
     async def pinterest_search(query: str):
         try:
-            append_to_json("responses.json", f"Going over pinterest for inspiration 💫")
+            append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", f"Going over pinterest for inspiration 💫")
 
             # Configure Chrome options for headless browsing
             chrome_options = Options()
@@ -232,7 +240,7 @@ async def create_superior_agent(query, image_path, audio_path):
             driver.execute_script("window.scrollBy(0, 700);")  # Scroll down by 700 pixels
             time.sleep(2)  # Give the page time to adjust
 
-            append_to_json("responses.json", f"Matching to your taste! 💢")
+            append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", f"Matching to your taste! 💢")
             # Take the second screenshot
             screenshot2_path = "screenshot2.png"
             driver.save_screenshot(screenshot2_path)
@@ -247,7 +255,7 @@ async def create_superior_agent(query, image_path, audio_path):
             driver.save_screenshot(screenshot3_path)
             files.append(client.files.upload(file=screenshot3_path))
 
-            append_to_json("responses.json", f"Finalizing inspirations ☺️")
+            append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", f"Finalizing inspirations ☺️")
             # Close the driver
             driver.quit()
             
@@ -259,7 +267,7 @@ async def create_superior_agent(query, image_path, audio_path):
 
     async def access_closet_analysis_agent(instruction_to_agent: str):
         try:
-            append_to_json("responses.json", f"Analyzing your closet 🧐")
+            append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", f"Analyzing your closet 🧐")
 
             model_id = "gemini-2.0-flash-exp"                
             prompt = types.Content(
@@ -286,7 +294,7 @@ async def create_superior_agent(query, image_path, audio_path):
             return f"Error in Closet analysis agent: {str(e)}"
         
     async def access_style_match_agent(instruction_to_agent):
-        append_to_json("responses.json", f"Calculating your fit check 💅")
+        append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", f"Calculating your fit check 💅")
         tools = [
         types.Tool(
             function_declarations=[
@@ -316,7 +324,7 @@ async def create_superior_agent(query, image_path, audio_path):
         )
         
         model = "gemini-2.0-flash"
-        
+
         generation_result = client.models.generate_content(
         model=model,
         contents=[types.Content(
@@ -378,7 +386,7 @@ async def create_superior_agent(query, image_path, audio_path):
                 return result
             else:
                 return f"Unknown function: {function_name}"
-    
+
     try:
         files = [
             client.files.upload(file=image_path),
@@ -386,13 +394,15 @@ async def create_superior_agent(query, image_path, audio_path):
         ]
     except Exception as file_error:
         raise Exception(f"Failed to upload files: {str(file_error)}")
-
+    print("hello")
     # Include chat history in the content
     contents=[]
     try:
         for turn in chat_history:
-            contents.append(types.Content(role="user", parts=[types.Part.from_text(text=turn["user"])]))
-            contents.append(types.Content(role="model", parts=[types.Part.from_text(text=turn["model"])]))
+            if "user" in turn:
+                contents.append(types.Content(role="user", parts=[types.Part.from_text(text=turn["user"])]))
+            if "model" in turn:
+                contents.append(types.Content(role="model", parts=[types.Part.from_text(text=turn["model"])]))
             
         contents.append(
             types.Content(
@@ -440,28 +450,29 @@ async def create_superior_agent(query, image_path, audio_path):
         )
         print("\nSuperior Agent nested @ ",generation_result, f"\n for {contents}")
 
-        if generation_result.candidates[-1].content.parts[-1].text:
-            # Save the conversation turn to chat history
-            chat_history.append({"user": query, "model": generation_result.candidates[-1].content.parts[-1].text})
-            save_chat_history(chat_history)
+        # if generation_result.candidates[-1].content.parts[-1].text:
+        #     # Save the conversation turn to chat history
+        #     chat_history.append({"user": query}, {"model": generation_result.candidates[-1].content.parts[-1].text})
+        #     save_chat_history(chat_history, f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json") 
             
     if generation_result.candidates[-1].content.parts[-1].text:
         # Save the conversation turn to chat history
-        chat_history.append({"user": query, "model": generation_result.candidates[-1].content.parts[-1].text})
-        save_chat_history(chat_history)
+        chat_history.append({"user": query})
+        chat_history.append( {"model": generation_result.candidates[-1].content.parts[-1].text})
+        save_chat_history(chat_history, f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/chat_history.json") 
     
     global grounding_sources
-    append_to_json("responses.json", grounding_sources)
+    append_to_json(f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/responses.json", grounding_sources)
     task_running = False    
     return responses
         
         
         
-def run_agent_in_background(query, image_path, audio_path):
+def run_agent_in_background(query, image_path, audio_path,user_id):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(create_superior_agent(query, image_path, audio_path))
+        loop.run_until_complete(create_superior_agent(query, image_path, audio_path,user_id))
     except Exception as e:
         global task_error
         task_error = str(e)
@@ -475,34 +486,24 @@ def start_message():
         return jsonify({'error': 'No JSON data provided'}), 400
     if 'text' not in request.json:
         return jsonify({'error': 'Text query is required'}), 400
-    if 'image_path' not in request.json:
-        return jsonify({'error': 'Image path is required'}), 400
-    if 'audio_path' not in request.json:
-        return jsonify({'error': 'Audio path is required'}), 400
     
     query = request.json['text']
-    image_path = request.json['image_path']
-    audio_path = request.json['audio_path']
+    
     global user_id
     user_id = request.json['userid']
-    
-    if not os.path.exists(image_path):
-        return jsonify({'error': f"Image file not found: {image_path}"}), 400
-    if not os.path.exists(audio_path):
-        return jsonify({'error': f"Audio file not found: {audio_path}"}), 400
-    
+    image_path = f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/temp_image.jpeg"
+    audio_path = f"/home/ash/DevHacks-2025/frontend/public/users/{user_id}/temp_audio.mp3"
     responses = []  # Clear previous responses
+    print(image_path, audio_path)
     task_running = True
     task_error = None
     conversation_complete = False
     
-    threading.Thread(target=run_agent_in_background, args=(query, image_path, audio_path,)).start()
+    threading.Thread(target=run_agent_in_background, args=(query, image_path, audio_path,user_id)).start()
     return jsonify({'message': 'Task started in the background. Check /getstatus for updates.'}), 200
-
-
-
 if __name__ == "__main__":
     try:
+        CORS(app)  # Enable CORS for all routes
         app.run(debug=True, host='0.0.0.0', port=5000)
     except Exception as e:
         print(f"Failed to start server: {str(e)}")

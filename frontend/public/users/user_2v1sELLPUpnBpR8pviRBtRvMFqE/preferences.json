@@ -1,0 +1,51 @@
+{
+  "user_id": "user_2v1sELLPUpnBpR8pviRBtRvMFqE",
+  "name": "ash",
+  "age": 19,
+  "gender": "male",
+  "location": "Lucknow",
+  "onboarding_responses": {
+    "favorite_colors": [
+      "black",
+      "blue"
+    ],
+    "dominant_colors": [
+      "purple",
+      "yellow",
+      "blue"
+    ],
+    "preferred_materials": [
+      "cotton",
+      "leather",
+      "linen"
+    ],
+    "preferred_patterns": [
+      "plaid",
+      "floral",
+      "geometric"
+    ],
+    "style_preferences": [
+      "casual",
+      "vintage"
+    ],
+    "fashion_influences": [
+      "Zack Mukerberg"
+    ],
+    "wardrobe_challenges": "",
+    "budget": "moderate",
+    "lifestyle": {
+      "work": "creative",
+      "social": "relaxed",
+      "climate": "warm"
+    }
+  },
+  "style_profile": {
+    "casual": 80,
+    "formal": 10,
+    "active": 10,
+    "pattern_variability": "high",
+    "material_variety": "medium"
+  },
+  "email": "asriv132@asu.edu",
+  "updated_at": "2025-03-30T08:37:25.021Z"
+}

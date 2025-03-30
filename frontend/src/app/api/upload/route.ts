@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       const fileName = `${uniqueId}.${fileExtension}`;
       
       // Create a relative path to use in the application
-      relativePath = `/users/${userId}/${fileName}`;
+      relativePath = `/users/${userId}/temp_image.${fileExtension}`;
     } else {
       // For non-authenticated users - also store in a user folder with guest ID
       const guestId = uniqueId;
@@ -73,12 +73,8 @@ export async function POST(request: NextRequest) {
     const sessionId = uniqueId;
     
     // Create replies.json file
-    const repliesData = {
-      sessionId: sessionId,
-      replies: []
-    };
     const repliesFilePath = path.join(userFolderPath, `chat_history.json`);
-    fs.writeFileSync(repliesFilePath, JSON.stringify(repliesData, null, 2));
+    fs.writeFileSync(repliesFilePath, JSON.stringify([], null, 2));
     
     // Create responses.json file
     const responsesData = {
@@ -86,7 +82,7 @@ export async function POST(request: NextRequest) {
       responses: []
     };
     const responsesFilePath = path.join(userFolderPath, `responses.json`);
-    fs.writeFileSync(responsesFilePath, JSON.stringify(responsesData, null, 2));
+    fs.writeFileSync(responsesFilePath, JSON.stringify([], null, 2));
     
     return NextResponse.json(
       { 

@@ -11,3 +11,4 @@ pytest
 requests
 selenium
 pyttsx3
+flask_cors

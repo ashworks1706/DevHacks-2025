@@ -1,16 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { 
   FiUpload, FiMic, 
   FiCheck, FiLoader, FiClock,
   FiSend, FiPlus, FiSettings
 } from 'react-icons/fi';
-
-interface ChatComponentProps {
-  systemStatus: 'idle' | 'processing' | 'completed' | 'error';
-  statusMessages: {status: string; message: string; time: string}[];
-}
 
 interface ChatMessage {
   role: 'user' | 'ai';
@@ -18,51 +14,113 @@ interface ChatMessage {
   isLoading?: boolean;
 }
 
-const ChatComponent = ({ systemStatus, statusMessages }: ChatComponentProps) => {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { role: 'ai', content: 'Hello! I\'m your FashionAI assistant. I can analyze your outfit and provide recommendations. What would you like to know?' }
-  ]);
+const ChatComponent = () => {
+  const { user } = useUser();
+  const userId = user?.id;
+  console.log(userId)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLDivElement>(null);
+  const [systemStatus, setSystemStatus] = useState<'idle' | 'processing' | 'completed' | 'error'>('idle');
+  const [statusMessages, setStatusMessages] = useState<any>([]);
+
+  useEffect(() => {
+    console.log(userId)
+    const fetchChatHistory = async () => {
+      try {
+        if (!userId) return;
+        const response = await fetch(`/users/${userId}/chat_history.json`);
+        if (response.ok) {
+          const data = await response.json();
+          // Map the chat history to the ChatMessage interface
+          const mappedMessages = data.map((message: any) => ({
+            role: message.user ? 'user' : 'ai',
+            content: message.user || message.model,
+          }));
+          setChatMessages(mappedMessages);
+        } else {
+          console.error('Failed to fetch chat history:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching chat history:', error);
+      }
+    };
+
+    fetchChatHistory();
+    const intervalId = setInterval(fetchChatHistory, 2000); // Fetch every 2 seconds
+
+    return () => clearInterval(intervalId); // Clean up interval on unmount
+  }, [userId]);
+
+  useEffect(() => {
+    const fetchStatusMessages = async () => {
+      try {
+        if (!userId) return;
+        const response = await fetch(`/users/${userId}/responses.json`);
+        if (response.ok) {
+          const data = await response.json();
+          setStatusMessages(data);
+          
+        } else {
+          console.error('Failed to fetch status messages:', response.status);
+          setSystemStatus('error');
+        }
+      } catch (error) {
+        console.error('Error fetching status messages:', error);
+        setSystemStatus('error');
+      }
+    };
+
+    fetchStatusMessages();
+    const intervalId = setInterval(fetchStatusMessages, 2000); // Fetch every 2 seconds
+
+    return () => clearInterval(intervalId); // Clean up interval on unmount
+  }, [userId]);
 
   useEffect(() => {
     // Scroll to bottom of chat when new messages are added
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [chatMessages, isAiTyping]);
+  }, [chatMessages]);
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim() || isAiTyping) return;
-    
-    // Add user message to chat
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isAiTyping || !userId) return;
+
+    // Add user message to chat - optimistically update
     setChatMessages(prev => [...prev, { role: 'user', content: inputMessage }]);
-    
+
     // Clear input and reset contentEditable div
     setInputMessage('');
     if (inputRef.current) {
       inputRef.current.textContent = '';
     }
-    
-    // Show AI is typing
-    setIsAiTyping(true);
-    
-    // Simulate AI response after a delay
-    setTimeout(() => {
-      const responses = [
-        "Your outfit has a smart casual style. I particularly like how the colors work together!",
-        "Based on current trends, I'd suggest pairing this with a minimalist accessory like a silver bracelet or watch.",
-        "This outfit would work well for a variety of occasions including work meetings, lunch with friends, or casual evening events.",
-        "The fit of your clothing appears good. The proportions are balanced nicely between top and bottom.",
-        "For similar styles, you might like to try incorporating more layered pieces like light jackets or cardigans."
-      ];
-      
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      setIsAiTyping(false);
-      setChatMessages(prev => [...prev, { role: 'ai', content: randomResponse }]);
-    }, 1500);
+
+    try {
+      const response = await fetch('http://127.0.0.1:5000/sendMessage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userid: userId,
+          text: inputMessage,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      // No need to handle response, as backend updates chat_history.json
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      // Revert optimistic update on error
+      setChatMessages(prev => prev.slice(0, -1));
+      // Optionally, display an error message to the user
+      setSystemStatus('error');
+    }
   };
 
   const handleVoiceInput = () => {
@@ -99,6 +157,7 @@ const ChatComponent = ({ systemStatus, statusMessages }: ChatComponentProps) => 
     </div>
   );
 
+  console.log(statusMessages)
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-full">
       {/* Status bar */}
@@ -148,24 +207,48 @@ const ChatComponent = ({ systemStatus, statusMessages }: ChatComponentProps) => 
       </div>
       
       {/* System status log */}
-      {statusMessages.length > 0 && (
-        <div className="border-t border-gray-200 py-2 px-4 bg-gray-50">
-          <h3 className="text-xs font-semibold text-gray-500 mb-1">System Status</h3>
-          <div className="space-y-1 max-h-[80px] overflow-y-auto">
-            {statusMessages.slice(-3).map((status, index) => (
-              <div key={index} className="flex items-center text-xs">
-                <div className="mr-2">
-                  {getStatusIcon(status.status)}
-                </div>
-                <div className="flex-1">{status.message}</div>
-                <div className="text-xs text-gray-500">{status.time}</div>
+        {statusMessages && statusMessages.length > 0 && (
+          <div className="border-t border-gray-200 py-2 px-4 bg-gray-50">
+            <h3 className="text-xs font-semibold text-gray-500 mb-1">System Status</h3>
+            <div className="space-y-1 max-h-[80px] overflow-y-auto">
+            {statusMessages.filter((status:any, index:any, self:any) =>
+              index === self.findIndex((t:any) => (
+              JSON.stringify(t) === JSON.stringify(status)
+              ))
+            ).map((status :any, index:any) => (
+            <div key={index} className="flex items-center text-xs">
+              <div className="flex-1">
+              {Array.isArray(status) ? (
+              status.map((link, linkIndex) => {
+                try {
+                const url = new URL(link);
+                return (
+                <button key={linkIndex} className="bg-purple-200 hover:bg-purple-300 text-purple-800 font-bold py-1 px-2 rounded mr-2 mb-1">
+                {url.hostname}
+                </button>
+                );
+                } catch (error) {
+                return (
+                <button key={linkIndex} className="bg-red-200 hover:bg-red-300 text-red-800 font-bold py-1 px-2 rounded mr-2 mb-1">
+                Invalid URL
+                </button>
+                );
+                }
+              })
+              ) : (
+              <>
+              {status}
+              <br />
+              </>
+              )}
               </div>
+            </div>
             ))}
+            </div>
           </div>
-        </div>
-      )}
-      
-      {/* Chat input - Styled like Claude's UI */}
+        )}
+        
+        {/* Chat input - Styled like Claude's UI */}
       <div className="border-t border-gray-200 p-4">
         <div className="relative flex items-center py-3">
           {/* Voice input button - Left side */}
