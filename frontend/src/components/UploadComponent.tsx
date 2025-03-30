@@ -10,6 +10,7 @@ const UploadComponent = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileUrl, setSelectedFileUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -31,7 +32,37 @@ const UploadComponent = () => {
     }
   }, [searchParams]);
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const saveFileToUserFolder = async (file: File) => {
+    try {
+      setUploadStatus('Uploading...');
+      
+      // Create a FormData object to send the file
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Send the file to the server
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
+      }
+      
+      // Get the saved file path from the response
+      const data = await response.json();
+      setUploadStatus('Upload successful!');
+      
+      return data.filePath; // Return the path where the file was saved
+    } catch (error) {
+      console.error('Error saving file:', error);
+      setUploadStatus('Upload failed. Please try again.');
+      throw error;
+    }
+  };
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
@@ -39,10 +70,18 @@ const UploadComponent = () => {
       setSelectedFileUrl(fileUrl);
       console.log("Selected file:", file);
       
-      // Navigate to the edit page after a short delay
-      setTimeout(() => {
-        router.push(`/upload/edit?image=${encodeURIComponent(fileUrl)}`);
-      }, 500);
+      try {
+        // Save the file to the user folder
+        const savedFilePath = await saveFileToUserFolder(file);
+        
+        // Navigate to the edit page after a short delay
+        setTimeout(() => {
+          router.push(`/upload/edit?image=${encodeURIComponent(savedFilePath)}`);
+        }, 500);
+      } catch (error) {
+        // Error is already handled in saveFileToUserFolder
+        console.error('Error in file upload flow:', error);
+      }
     }
   };
 
@@ -56,7 +95,7 @@ const UploadComponent = () => {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
     
@@ -67,10 +106,18 @@ const UploadComponent = () => {
       setSelectedFileUrl(fileUrl);
       console.log("Dropped file:", file);
       
-      // Navigate to the edit page after a short delay
-      setTimeout(() => {
-        router.push(`/upload/edit?image=${encodeURIComponent(fileUrl)}`);
-      }, 500);
+      try {
+        // Save the file to the user folder
+        const savedFilePath = await saveFileToUserFolder(file);
+        
+        // Navigate to the edit page after a short delay
+        setTimeout(() => {
+          router.push(`/upload/edit?image=${encodeURIComponent(savedFilePath)}`);
+        }, 500);
+      } catch (error) {
+        // Error is already handled in saveFileToUserFolder
+        console.error('Error in file drop upload flow:', error);
+      }
     }
   };
 
@@ -116,6 +163,12 @@ const UploadComponent = () => {
                   Upload a photo, discover your perfect outfit
               </h1>
 
+              {/* Upload status message */}
+              {uploadStatus && (
+                <div className={`mb-4 px-4 py-2 rounded ${uploadStatus.includes('failed') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                  {uploadStatus}
+                </div>
+              )}
               
               {/* Upload button */}
               <button 

@@ -3,9 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { auth, currentUser } from '@clerk/nextjs/server';
 
-
 const ensureUserDir = () => {
-  const userDir = path.join(process.cwd(), 'user');
+  const userDir = path.join(process.cwd(), 'public', 'users');
   if (!fs.existsSync(userDir)) {
     fs.mkdirSync(userDir, { recursive: true });
   }
@@ -14,7 +13,6 @@ const ensureUserDir = () => {
 
 export async function GET(request: NextRequest) {
   try {
-
     const { userId } = await auth();
     
     if (!userId) {
@@ -24,12 +22,19 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const queryUserId = searchParams.get('userId');
     
-    if (queryUserId !== userId) {
+    if (queryUserId && queryUserId !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
     
     const userDir = ensureUserDir();
-    const filePath = path.join(userDir, `${userId}.json`);
+    const userFolderPath = path.join(userDir, userId);
+    
+    // Create user directory if it doesn't exist
+    if (!fs.existsSync(userFolderPath)) {
+      fs.mkdirSync(userFolderPath, { recursive: true });
+    }
+    
+    const filePath = path.join(userFolderPath, 'preferences.json');
     
     if (!fs.existsSync(filePath)) {
       return NextResponse.json({ error: 'User preferences not found' }, { status: 404 });
@@ -57,17 +62,31 @@ export async function POST(request: NextRequest) {
     const preferences = await request.json();
     
     // Ensure preferences belong to the authenticated user
-    if (preferences.user_id !== userId) {
+    if (preferences.user_id && preferences.user_id !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
     
+    // Add/update user_id in preferences
+    preferences.user_id = userId;
+    
     const userDir = ensureUserDir();
-    const filePath = path.join(userDir, `${userId}.json`);
+    const userFolderPath = path.join(userDir, userId);
+    
+    // Create user directory if it doesn't exist
+    if (!fs.existsSync(userFolderPath)) {
+      fs.mkdirSync(userFolderPath, { recursive: true });
+    }
+    
+    const filePath = path.join(userFolderPath, 'preferences.json');
     
     // Save preferences to JSON file
     fs.writeFileSync(filePath, JSON.stringify(preferences, null, 2), 'utf-8');
     
-    return NextResponse.json({ success: true, message: 'Preferences saved successfully' });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Preferences saved successfully',
+      userId: userId
+    });
   } catch (error) {
     console.error('Error saving user preferences:', error);
     return NextResponse.json({ error: 'Failed to save user preferences' }, { status: 500 });
