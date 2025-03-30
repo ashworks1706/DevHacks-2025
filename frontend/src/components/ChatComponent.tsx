@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   FiUpload, FiMic, 
-  FiCheck, FiLoader, FiClock 
+  FiCheck, FiLoader, FiClock,
+  FiSend, FiPlus, FiSettings
 } from 'react-icons/fi';
 
 interface ChatComponentProps {
@@ -11,26 +12,42 @@ interface ChatComponentProps {
   statusMessages: {status: string; message: string; time: string}[];
 }
 
+interface ChatMessage {
+  role: 'user' | 'ai';
+  content: string;
+  isLoading?: boolean;
+}
+
 const ChatComponent = ({ systemStatus, statusMessages }: ChatComponentProps) => {
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai'; content: string; }[]>([
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: 'ai', content: 'Hello! I\'m your FashionAI assistant. I can analyze your outfit and provide recommendations. What would you like to know?' }
   ]);
   const [inputMessage, setInputMessage] = useState('');
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Scroll to bottom of chat when new messages are added
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [chatMessages]);
+  }, [chatMessages, isAiTyping]);
 
   const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || isAiTyping) return;
     
     // Add user message to chat
     setChatMessages(prev => [...prev, { role: 'user', content: inputMessage }]);
+    
+    // Clear input and reset contentEditable div
     setInputMessage('');
+    if (inputRef.current) {
+      inputRef.current.textContent = '';
+    }
+    
+    // Show AI is typing
+    setIsAiTyping(true);
     
     // Simulate AI response after a delay
     setTimeout(() => {
@@ -43,6 +60,7 @@ const ChatComponent = ({ systemStatus, statusMessages }: ChatComponentProps) => 
       ];
       
       const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+      setIsAiTyping(false);
       setChatMessages(prev => [...prev, { role: 'ai', content: randomResponse }]);
     }, 1500);
   };
@@ -67,6 +85,19 @@ const ChatComponent = ({ systemStatus, statusMessages }: ChatComponentProps) => 
         return <FiClock className="text-gray-500" />;
     }
   };
+
+  // ChatGPT-style typing indicator with bouncing dots
+  const TypingIndicator = () => (
+    <div className="flex justify-start">
+      <div className="bg-gray-100 text-black rounded-lg px-4 py-3 max-w-[80%]">
+        <div className="typing-animation">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-full">
@@ -104,56 +135,147 @@ const ChatComponent = ({ systemStatus, statusMessages }: ChatComponentProps) => 
               className={`max-w-[80%] rounded-lg px-3 py-2 ${
                 message.role === 'user' 
                   ? 'bg-[#8c66ff] text-white' 
-                  : 'bg-gray-200 text-black'
+                  : 'bg-gray-50 text-black shadow-sm'
               }`}
             >
               {message.content}
             </div>
           </div>
         ))}
+        
+        {/* Show typing indicator when AI is responding */}
+        {isAiTyping && <TypingIndicator />}
       </div>
       
       {/* System status log */}
-      <div className="border-t border-gray-200 py-2 px-4 bg-gray-50">
-        <h3 className="text-xs font-semibold text-gray-500 mb-1">System Status</h3>
-        <div className="space-y-1 max-h-[80px] overflow-y-auto">
-          {statusMessages.slice(-3).map((status, index) => (
-            <div key={index} className="flex items-center text-xs">
-              <div className="mr-2">
-                {getStatusIcon(status.status)}
+      {statusMessages.length > 0 && (
+        <div className="border-t border-gray-200 py-2 px-4 bg-gray-50">
+          <h3 className="text-xs font-semibold text-gray-500 mb-1">System Status</h3>
+          <div className="space-y-1 max-h-[80px] overflow-y-auto">
+            {statusMessages.slice(-3).map((status, index) => (
+              <div key={index} className="flex items-center text-xs">
+                <div className="mr-2">
+                  {getStatusIcon(status.status)}
+                </div>
+                <div className="flex-1">{status.message}</div>
+                <div className="text-xs text-gray-500">{status.time}</div>
               </div>
-              <div className="flex-1">{status.message}</div>
-              <div className="text-xs text-gray-500">{status.time}</div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       
-      {/* Chat input */}
-      <div className="border-t border-gray-200 p-3">
-        <div className="flex items-center space-x-2">
+      {/* Chat input - Styled like Claude's UI */}
+      <div className="border-t border-gray-200 p-4">
+        <div className="relative flex items-center py-3">
+          {/* Voice input button - Left side */}
           <button 
             onClick={handleVoiceInput}
-            className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+            className="icon-button text-[#8c66ff] hover:text-[#7c52f2] transition-colors relative"
+            disabled={isAiTyping}
           >
-            <FiMic className="w-4 h-4 text-[#8c66ff]" />
+            <span className="absolute inset-0 rounded-full bg-transparent transition-opacity opacity-0 hover:opacity-100 hover:bg-purple-50"></span>
+            <FiMic className="w-5 h-5 stroke-current relative z-10" />
           </button>
-          <input
-            type="text"
-            placeholder="Ask about your outfit..."
-            className="flex-1 border border-gray-300 rounded-full px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#8c66ff] focus:border-transparent"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          />
+          
+          {/* Contenteditable div instead of input */}
+          <div
+            ref={inputRef}
+            role="textbox"
+            contentEditable={!isAiTyping}
+            data-placeholder="How can I help you today?"
+            className="flex-1 outline-none bg-transparent ml-3 text-gray-700 min-h-[24px] max-h-[120px] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+            suppressContentEditableWarning={true}
+            onInput={(e) => setInputMessage(e.currentTarget.textContent || '')}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
+            style={{ 
+              wordBreak: 'break-word', 
+              cursor: isAiTyping ? 'not-allowed' : 'text' 
+            }}
+          ></div>
+          
+          {/* Plus/Upload button - Right side */}
+          <button
+            className="icon-button text-[#8c66ff] hover:text-[#7c52f2] ml-3 transition-colors relative"
+            disabled={isAiTyping}
+          >
+            <span className="absolute inset-0 rounded-full bg-transparent transition-opacity opacity-0 hover:opacity-100 hover:bg-purple-50"></span>
+            <FiPlus className="w-5 h-5 stroke-current relative z-10" />
+          </button>
+          
+          {/* Send button - Right side */}
           <button
             onClick={handleSendMessage}
-            className="p-2 bg-[#8c66ff] rounded-full text-white hover:bg-[#7c52f2] transition-colors"
+            className={`icon-button ml-3 ${isAiTyping || !inputMessage ? 'text-gray-400 cursor-not-allowed' : 'text-[#8c66ff] hover:text-[#7c52f2]'} transition-colors relative`}
+            disabled={isAiTyping || !inputMessage}
           >
-            <FiUpload className="w-4 h-4" />
+            <span className={`absolute inset-0 rounded-full bg-transparent transition-opacity opacity-0 ${isAiTyping || !inputMessage ? '' : 'hover:opacity-100 hover:bg-purple-50'}`}></span>
+            <FiSend className="w-5 h-5 stroke-current relative z-10" />
           </button>
         </div>
       </div>
+
+      {/* CSS for the typing animation and icons */}
+      <style jsx global>{`
+        .typing-animation {
+          display: flex;
+          align-items: center;
+          column-gap: 6px;
+        }
+        
+        .typing-animation span {
+          height: 8px;
+          width: 8px;
+          border-radius: 50%;
+          opacity: 0.7;
+          display: inline-block;
+          background-color: #8c66ff;
+        }
+        
+        .typing-animation span:nth-child(1) {
+          animation: bounce 1s infinite;
+        }
+        
+        .typing-animation span:nth-child(2) {
+          animation: bounce 1s infinite .2s;
+        }
+        
+        .typing-animation span:nth-child(3) {
+          animation: bounce 1s infinite .4s;
+        }
+        
+        @keyframes bounce {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-7px);
+          }
+        }
+        
+        .icon-button {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          stroke-width: 2px;
+          padding: 8px;
+          border-radius: 50%;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+          border: 1px solid transparent;
+        }
+        
+        .icon-button:hover:not(:disabled) {
+          background-color: rgba(140, 102, 255, 0.1);
+          border-color: #8c66ff;
+          box-shadow: 0 2px 10px rgba(140, 102, 255, 0.4);
+        }
+        
+        .icon-button:active:not(:disabled) {
+          background-color: rgba(140, 102, 255, 0.2);
+          box-shadow: 0 2px 8px rgba(140, 102, 255, 0.5);
+        }
+      `}</style>
     </div>
   );
 };

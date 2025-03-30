@@ -9,13 +9,6 @@ export async function POST(request: NextRequest) {
     // Get the userId from auth()
     const { userId } = await auth();
     
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-    
     // Get form data from the request
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -27,18 +20,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user-specific directory path
-    const userFolderPath = path.join(process.cwd(), 'public', 'users', userId);
+    let folderPath: string;
+    let relativePath: string;
     
-    // Create user directory if it doesn't exist
-    if (!fs.existsSync(userFolderPath)) {
-      fs.mkdirSync(userFolderPath, { recursive: true });
+    if (userId) {
+      // For authenticated users - store in their personal folder
+      folderPath = path.join(process.cwd(), 'public', 'users', userId);
+      
+      // Create user directory if it doesn't exist
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+      
+      // Generate unique filename
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `${uuidv4()}.${fileExtension}`;
+      
+      // Create a relative path to use in the application
+      relativePath = `/users/${userId}/${fileName}`;
+    } else {
+      // For non-authenticated users - store in a temporary folder
+      folderPath = path.join(process.cwd(), 'public', 'temp');
+      
+      // Create temp directory if it doesn't exist
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+      
+      // Generate unique filename
+      const fileExtension = file.name.split('.').pop();
+      const tempId = uuidv4(); // Generate a temporary ID for the guest
+      const fileName = `${tempId}.${fileExtension}`;
+      
+      // Create a relative path to use in the application
+      relativePath = `/temp/${fileName}`;
     }
     
-    // Generate unique filename
-    const fileExtension = file.name.split('.').pop();
-    const fileName = `${uuidv4()}.${fileExtension}`;
-    const filePath = path.join(userFolderPath, fileName);
+    const filePath = path.join(folderPath, path.basename(relativePath));
     
     // Convert file to buffer and save it
     const bytes = await file.arrayBuffer();
@@ -47,15 +65,11 @@ export async function POST(request: NextRequest) {
     // Write the file to disk
     fs.writeFileSync(filePath, buffer);
     
-    // Create a relative path to use in the application
-    // Since we're saving inside the public folder, we can directly access it
-    const relativePath = `/users/${userId}/${fileName}`;
-    
     return NextResponse.json(
       { 
         success: true,
         filePath: relativePath,
-        userId: userId
+        userId: userId || 'guest'
       },
       { status: 200 }
     );
