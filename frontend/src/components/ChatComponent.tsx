@@ -26,6 +26,7 @@ const ChatComponent = () => {
   const [systemStatus, setSystemStatus] = useState<'idle' | 'processing' | 'completed' | 'error'>('idle');
   const [statusMessages, setStatusMessages] = useState<any>([]);
   const [lastMessageTimestamp, setLastMessageTimestamp] = useState<number>(0);
+  const [chatHistoryLoaded, setChatHistoryLoaded] = useState(false);
 
   useEffect(() => {
     console.log(userId)
@@ -42,10 +43,11 @@ const ChatComponent = () => {
             id: `history-${index}`,
           }));
           
-          // Only update if we have new messages to avoid UI flicker
-          if (JSON.stringify(chatMessages) !== JSON.stringify(mappedMessages)) {
+          // Only update if we have new messages and chat history hasn't been loaded yet
+          if (!chatHistoryLoaded || JSON.stringify(mappedMessages) !== JSON.stringify(chatMessages)) {
             setChatMessages(mappedMessages);
             setIsAiTyping(false); // Turn off typing indicator when we get the real response
+            setChatHistoryLoaded(true); // Mark chat history as loaded
           }
         } else {
           console.error('Failed to fetch chat history:', response.status);
@@ -67,7 +69,7 @@ const ChatComponent = () => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     }
-  }, [userId, lastMessageTimestamp]);
+  }, [userId, lastMessageTimestamp, chatHistoryLoaded]);
 
   useEffect(() => {
     const fetchStatusMessages = async () => {
