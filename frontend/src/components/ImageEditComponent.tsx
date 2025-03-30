@@ -25,7 +25,11 @@ const ImageEditComponent = () => {
     {status: 'completed', message: 'Analysis initialized', time: '10:30 AM'},
   ]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-
+  
+  // Image control states
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  
   // Disable scrolling on the entire document
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -81,6 +85,10 @@ const ImageEditComponent = () => {
       const newImageUrl = URL.createObjectURL(file);
       setImageUrl(newImageUrl);
       
+      // Reset image controls
+      setZoom(1);
+      setRotation(0);
+      
       // Simulate new status messages
       setSystemStatus('processing');
       setStatusMessages([
@@ -108,11 +116,21 @@ const ImageEditComponent = () => {
   const handleThumbsUp = () => {
     console.log("User rated this result positively");
     // You would implement your rating logic here
+    setStatusMessages(prev => [...prev, {
+      status: 'completed', 
+      message: 'Positive feedback recorded', 
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    }]);
   };
 
   const handleThumbsDown = () => {
     console.log("User rated this result negatively");
     // You would implement your rating logic here
+    setStatusMessages(prev => [...prev, {
+      status: 'completed', 
+      message: 'Negative feedback recorded', 
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    }]);
   };
 
   const handleSendMessage = () => {
@@ -171,6 +189,61 @@ const ImageEditComponent = () => {
     }, 2000);
   };
 
+  // Image control functions
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 0.1, 3));
+    setStatusMessages(prev => [...prev, {
+      status: 'completed', 
+      message: 'Zoomed in', 
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    }]);
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 0.1, 1)); // Prevent zooming out past default level (1)
+    setStatusMessages(prev => [...prev, {
+      status: 'completed', 
+      message: 'Zoomed out', 
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    }]);
+  };
+
+  const handleRotate = () => {
+    setRotation(prev => (prev + 90) % 360);
+    setStatusMessages(prev => [...prev, {
+      status: 'completed', 
+      message: 'Image rotated', 
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    }]);
+  };
+
+  const handleReset = () => {
+    setZoom(1);
+    setRotation(0);
+    setStatusMessages(prev => [...prev, {
+      status: 'completed', 
+      message: 'Image reset', 
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    }]);
+  };
+
+  const handleDownload = () => {
+    if (imageUrl) {
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = 'fashionai_image.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setStatusMessages(prev => [...prev, {
+        status: 'completed', 
+        message: 'Image downloaded', 
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      }]);
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch(status) {
       case 'completed':
@@ -199,68 +272,94 @@ const ImageEditComponent = () => {
           {/* Left side - Image display and upload options - Wider */}
           <div className="w-full md:w-3/5 p-4 h-full overflow-hidden">
             {/* Main image display */}
-            <div className="relative h-[calc(93vh-130px)] w-full overflow-hidden rounded-lg shadow-sm">
+            <div className="relative h-[calc(93vh-130px)] w-full overflow-hidden rounded-lg shadow-sm bg-black">
               {imageUrl && (
-                <div className="relative h-full w-full">
+                <div className="relative h-full w-full flex items-center justify-center bg-black">
                   <img
                     src={imageUrl}
                     alt="Uploaded image"
-                    className="object-contain w-full h-full"
+                    className="w-full h-full object-cover transition-all duration-200 rounded-lg"
+                    style={{ 
+                      transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                    }}
                   />
                 </div>
               )}
+            </div>
+            
+            {/* Upload options and controls at the bottom, all in one row */}
+            <div className="flex gap-4 mt-2 items-center justify-between">
+              {/* Left section - Upload controls */}
+              <div className="flex items-center gap-4">
+                {/* New upload button */}
+                <div 
+                  className="w-16 h-16 bg-[#d2c3ff] rounded-lg flex items-center justify-center cursor-pointer hover:bg-[#8c66ff] transition-colors"
+                  onClick={handleNewUpload}
+                >
+                  <FiPlus className="w-6 h-6 text-[#f3f3f3]" />
+                </div>
+                
+                {/* Current image thumbnail */}
+                {imageUrl && (
+                  <div className="w-16 h-16 bg-black rounded-lg border-2 border-[#8c66ff] overflow-hidden">
+                    <img 
+                      src={imageUrl}
+                      alt="Current image" 
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  </div>
+                )}
+                
+                <input 
+                  ref={fileInputRef}
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </div>
               
-              {/* Image control toolbar */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center space-x-4">
-                <button className="p-2 hover:bg-gray-200 rounded-full" title="Zoom in">
+              {/* Middle section - Image controls */}
+              <div className="flex items-center space-x-3 rounded-lg py-2 px-4">
+                <button 
+                  className="p-1 hover:bg-[#f5f0ff] rounded-full flex items-center hover:text-[#8c66ff] transition-colors"
+                  title="Zoom in"
+                  onClick={handleZoomIn}
+                >
                   <FiZoomIn className="w-5 h-5" />
                 </button>
-                <button className="p-2 hover:bg-gray-200 rounded-full" title="Zoom out">
+                <button 
+                  className="p-1 hover:bg-[#f5f0ff] rounded-full flex items-center hover:text-[#8c66ff] transition-colors"
+                  title="Zoom out"
+                  onClick={handleZoomOut}
+                >
                   <FiZoomOut className="w-5 h-5" />
                 </button>
-                <button className="p-2 hover:bg-gray-200 rounded-full" title="Rotate">
+                <button 
+                  className="p-1 hover:bg-[#f5f0ff] rounded-full flex items-center hover:text-[#8c66ff] transition-colors"
+                  title="Rotate"
+                  onClick={handleRotate}
+                >
                   <FiRotateCw className="w-5 h-5" />
                 </button>
-                <button className="p-2 hover:bg-gray-200 rounded-full" title="Reset">
+                <button 
+                  className="p-1 hover:bg-[#f5f0ff] rounded-full flex items-center hover:text-[#8c66ff] transition-colors"
+                  title="Reset"
+                  onClick={handleReset}
+                >
                   <FiRefreshCw className="w-5 h-5" />
                 </button>
-                <button className="p-2 hover:bg-gray-200 rounded-full" title="Download">
+                <button 
+                  className="p-1 hover:bg-[#f5f0ff] rounded-full flex items-center hover:text-[#8c66ff] transition-colors"
+                  title="Download"
+                  onClick={handleDownload}
+                >
                   <FiDownload className="w-5 h-5" />
                 </button>
               </div>
-            </div>
-            
-            {/* Upload options at the bottom, aligned to the left */}
-            <div className="flex gap-4 mt-2 justify-start">
-              {/* New upload button */}
-              <div 
-                className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center cursor-pointer hover:bg-blue-200 transition-colors"
-                onClick={handleNewUpload}
-              >
-                <FiPlus className="w-6 h-6 text-[#8c66ff]" />
-              </div>
               
-              {/* Current image thumbnail */}
-              {imageUrl && (
-                <div className="w-16 h-16 bg-white rounded-lg border-2 border-[#8c66ff] overflow-hidden">
-                  <img 
-                    src={imageUrl}
-                    alt="Current image" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                accept="image/*" 
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              
-              {/* Rate this result controls - moved from footer to here */}
-              <div className="ml-auto flex items-center space-x-2 rounded-lg px-3 py-2 ">
+              {/* Right section - Rating controls */}
+              <div className="flex items-center space-x-2 rounded-lg px-3 py-2">
                 <span className="text-sm font-medium text-gray-700">Rate result</span>
                 <button 
                   onClick={handleThumbsUp}
